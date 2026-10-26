@@ -103,7 +103,7 @@ export default function SystemAuditLogsPage() {
   });
 
   return (
-    <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6">
+    <div className="p-0 md:p-8 max-w-7xl mx-auto space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-6">
         <div>
           <span className="text-xs font-mono font-bold text-primary uppercase">
@@ -149,7 +149,8 @@ export default function SystemAuditLogsPage() {
       {/* Audit Log Table */}
       <Card className="overflow-hidden">
         <CardContent className="p-0">
-          <div className="divide-y text-xs font-mono">
+          <p className="px-4 py-2 text-xs text-muted-foreground md:hidden">Swipe horizontally to view all columns.</p>
+          <div className="lms-data-grid divide-y text-xs font-mono" role="region" aria-label="Scrollable records" tabIndex={0}>
             <div className="p-3.5 grid grid-cols-12 font-bold bg-muted/40 text-muted-foreground">
               <div className="col-span-2">Timestamp</div>
               <div className="col-span-3">Actor & Identity</div>

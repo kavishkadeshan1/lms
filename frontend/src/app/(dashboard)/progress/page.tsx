@@ -82,7 +82,7 @@ export default function StudentProgressPage() {
   ];
 
   return (
-    <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6">
+    <div className="p-0 md:p-8 max-w-7xl mx-auto space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-6">
         <div>
           <span className="text-xs font-mono font-bold text-primary uppercase">
@@ -103,7 +103,7 @@ export default function StudentProgressPage() {
       </div>
 
       {/* Overview Metric Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-4">
             <span className="text-xs text-muted-foreground">Semester Completion</span>
@@ -122,7 +122,7 @@ export default function StudentProgressPage() {
           <CardContent className="p-4">
             <span className="text-xs text-muted-foreground">Cumulative GPA</span>
             <div className="text-2xl font-bold mt-1 text-foreground">3.82</div>
-            <div className="text-[11px] text-muted-foreground mt-0.5">Dean's Honor List Tier</div>
+            <div className="text-[11px] text-muted-foreground mt-0.5">Dean&apos;s Honor List Tier</div>
           </CardContent>
         </Card>
         <Card>

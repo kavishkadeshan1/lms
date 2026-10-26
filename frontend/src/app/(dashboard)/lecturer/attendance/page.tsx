@@ -1,20 +1,16 @@
 "use client";
 
 import React, { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { 
-  Clock, 
   CheckCircle2, 
-  XCircle, 
-  AlertCircle, 
   Save, 
-  Calendar,
-  Users,
-  ShieldAlert
 } from "lucide-react";
 import { useTenant } from "@/lib/tenant-context";
+import { downloadFile, toCsv } from "@/lib/download";
+import { calendarDateKey } from "@/lib/calendar-dates";
 
 interface StudentRosterItem {
   id: string;
@@ -28,7 +24,7 @@ export default function LecturerAttendanceSessionPage() {
   const { tenant } = useTenant();
 
   const [sessionTopic, setSessionTopic] = useState("Lec 6: Microservices Circuit Breaker & Service Mesh");
-  const [sessionDate, setSessionDate] = useState("2026-10-08");
+  const [sessionDate, setSessionDate] = useState(() => calendarDateKey(new Date()));
   const [saveSuccess, setSaveSuccess] = useState(false);
 
   const [roster, setRoster] = useState<StudentRosterItem[]>([
@@ -49,6 +45,12 @@ export default function LecturerAttendanceSessionPage() {
   };
 
   const handleSave = () => {
+    downloadFile("sample-attendance.csv", "\uFEFF" + toCsv([
+      ["Sample attendance — not an official academic record"],
+      ["Session date", sessionDate, "Topic", sessionTopic],
+      ["Name", "Index number", "Status"],
+      ...roster.map(student => [student.name, student.indexNo, student.status]),
+    ]), "text/csv;charset=utf-8");
     setSaveSuccess(true);
     setTimeout(() => setSaveSuccess(false), 3000);
   };
@@ -59,7 +61,7 @@ export default function LecturerAttendanceSessionPage() {
   const excusedCount = roster.filter(s => s.status === "E").length;
 
   return (
-    <div className="p-6 md:p-8 max-w-6xl mx-auto space-y-6">
+    <div className="p-0 md:p-8 max-w-6xl mx-auto space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-6">
         <div>
           <span className="text-xs font-mono font-bold text-primary uppercase">
@@ -75,7 +77,7 @@ export default function LecturerAttendanceSessionPage() {
         <div className="flex items-center gap-3">
           {saveSuccess && (
             <span className="text-xs font-bold text-green-600 flex items-center gap-1.5 animate-in fade-in">
-              <CheckCircle2 size={16} /> Session Ledger Saved!
+              <CheckCircle2 size={16} /> Sample attendance CSV downloaded
             </span>
           )}
           <Button 
@@ -83,7 +85,7 @@ export default function LecturerAttendanceSessionPage() {
             className="text-xs gap-2 text-white font-semibold"
             style={{ backgroundColor: tenant.primaryColor }}
           >
-            <Save size={15} /> Save Session Record
+            <Save size={15} /> Export session CSV
           </Button>
         </div>
       </div>
@@ -113,24 +115,25 @@ export default function LecturerAttendanceSessionPage() {
 
       {/* Roster Table with Bulk Actions */}
       <Card>
-        <CardHeader className="py-4 px-6 border-b flex flex-row items-center justify-between">
+        <CardHeader className="py-4 px-4 sm:px-6 border-b flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-3 text-xs">
             <span className="font-bold text-foreground">Enrolled Students ({roster.length})</span>
-            <span className="text-muted-foreground">• Present: {presentCount} • Late: {lateCount} • Absent: {absentCount}</span>
+            <span className="text-muted-foreground">• Present: {presentCount} • Late: {lateCount} • Absent: {absentCount} • Excused: {excusedCount}</span>
           </div>
 
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <Button size="sm" variant="outline" onClick={() => markAll("P")} className="text-xs h-7">
               Mark All Present
             </Button>
             <Button size="sm" variant="ghost" onClick={() => markAll("A")} className="text-xs h-7 text-muted-foreground">
-              Clear All
+              Mark All Absent
             </Button>
           </div>
         </CardHeader>
 
         <CardContent className="p-0">
-          <div className="divide-y text-xs">
+          <p className="px-4 py-2 text-xs text-muted-foreground md:hidden">Swipe horizontally to view all columns.</p>
+          <div className="lms-data-grid divide-y text-xs" role="region" aria-label="Scrollable records" tabIndex={0}>
             <div className="p-3.5 grid grid-cols-12 font-bold bg-muted/40 text-muted-foreground">
               <div className="col-span-5">Student Identity</div>
               <div className="col-span-3 text-center">Cumulative Attendance</div>
@@ -162,18 +165,20 @@ export default function LecturerAttendanceSessionPage() {
 
                   {/* Attendance status radio pills: Present, Absent, Late, Excused */}
                   <div className="col-span-4 flex justify-end gap-1.5">
-                    {[
+                    {([
                       { code: "P", label: "Present", color: "bg-green-600 text-white" },
                       { code: "L", label: "Late", color: "bg-amber-600 text-white" },
                       { code: "A", label: "Absent", color: "bg-red-600 text-white" },
                       { code: "E", label: "Excused", color: "bg-blue-600 text-white" }
-                    ].map((opt) => {
+                    ] as const).map((opt) => {
                       const isSelected = student.status === opt.code;
                       return (
                         <button
                           key={opt.code}
                           type="button"
-                          onClick={() => updateStatus(student.id, opt.code as any)}
+                          onClick={() => updateStatus(student.id, opt.code)}
+                          aria-label={`${opt.label}: ${student.name}`}
+                          aria-pressed={isSelected}
                           className={`w-8 h-8 rounded-lg text-xs font-bold transition-all border ${
                             isSelected 
                               ? `${opt.color} shadow-xs border-transparent` 

@@ -21,6 +21,9 @@ import {
   FileCheck
 } from "lucide-react";
 import { useTenant } from "@/lib/tenant-context";
+import { useLocalState } from "@/lib/use-local-state";
+import { validateFile } from "@/lib/exam-attempt";
+import { downloadFile } from "@/lib/download";
 
 interface AssignmentRecord {
   id: string;
@@ -42,11 +45,7 @@ interface AssignmentRecord {
   receiptId?: string;
 }
 
-export default function AssignmentsPage() {
-  const { tenant, user } = useTenant();
-
-  // Multi-assignment list data
-  const [assignmentsList, setAssignmentsList] = useState<AssignmentRecord[]>([
+const INITIAL_ASSIGNMENTS: AssignmentRecord[] = [
     {
       id: "asg-1",
       courseCode: "IC 3204",
@@ -106,7 +105,12 @@ export default function AssignmentsPage() {
       briefFile: "IC3102_Index_Profiling_Lab_Guide.pdf",
       briefSize: "980 KB"
     }
-  ]);
+  ];
+
+export default function AssignmentsPage() {
+  const { tenant, user } = useTenant();
+  const storageScope = `${tenant.id}:${user.username}`;
+  const [assignmentsList, setAssignmentsList] = useLocalState<AssignmentRecord[]>(`lms:assignments:${storageScope}`, INITIAL_ASSIGNMENTS);
 
   // Selected assignment for detailed submission view
   const [selectedAsgId, setSelectedAsgId] = useState<string>("asg-1");
@@ -114,14 +118,19 @@ export default function AssignmentsPage() {
 
   // Detailed submission state for active assignment
   const activeAsg = assignmentsList.find(a => a.id === selectedAsgId) || assignmentsList[0];
-  const [selectedUploadFile, setSelectedUploadFile] = useState<string | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<Record<string, File | undefined>>({});
+  const selectedUploadFile = selectedFiles[selectedAsgId]?.name ?? null;
+  const [fileError, setFileError] = useState<string | null>(null);
   const [commentsOpen, setCommentsOpen] = useState(false);
-  const [commentText, setCommentText] = useState("");
-  const [commentsList, setCommentsList] = useState<string[]>([]);
+  const [commentDrafts, setCommentDrafts] = useState<Record<string, string>>({});
+  const commentText = commentDrafts[selectedAsgId] ?? "";
+  const setCommentText = (text: string) => setCommentDrafts(previous => ({ ...previous, [selectedAsgId]: text }));
+  const [allComments, setAllComments] = useLocalState<Record<string, string[]>>(`lms:assignment-comments:${storageScope}`, {});
+  const commentsList = allComments[selectedAsgId] ?? [];
   const [notificationMsg, setNotificationMsg] = useState<string | null>(null);
 
   const handleSubmitActive = () => {
-    if (!selectedUploadFile) return;
+    if (!selectedUploadFile || activeAsg.status !== "pending") return;
     const now = new Date().toLocaleString("en-US", { 
       weekday: "long", 
       year: "numeric", 
@@ -130,7 +139,7 @@ export default function AssignmentsPage() {
       hour: "2-digit", 
       minute: "2-digit" 
     });
-    const receipt = `SUB-2026-${Math.floor(100000 + Math.random() * 900000)}`;
+    const receipt = `LOCAL-${crypto.randomUUID()}`;
 
     setAssignmentsList(prev => prev.map(a => {
       if (a.id !== activeAsg.id) return a;
@@ -140,12 +149,12 @@ export default function AssignmentsPage() {
         submittedFile: selectedUploadFile,
         submittedTime: now,
         receiptId: receipt,
-        timeRemaining: "Submitted ahead of deadline"
+        timeRemaining: "Practice entry saved locally"
       };
     }));
 
-    setSelectedUploadFile(null);
-    setNotificationMsg(`Assignment "${activeAsg.title}" submitted successfully! Receipt ${receipt} generated.`);
+    setSelectedFiles(previous => ({ ...previous, [selectedAsgId]: undefined }));
+    setNotificationMsg(`Practice entry saved in this browser for "${activeAsg.title}". File contents were not uploaded.`);
     setTimeout(() => setNotificationMsg(null), 5000);
   };
 
@@ -162,14 +171,14 @@ export default function AssignmentsPage() {
           timeRemaining: "Due before deadline"
         };
       }));
-      setNotificationMsg("Submission removed.");
+      setNotificationMsg("Local practice entry removed.");
       setTimeout(() => setNotificationMsg(null), 3000);
     }
   };
 
   const handleAddComment = () => {
     if (!commentText.trim()) return;
-    setCommentsList(prev => [...prev, commentText.trim()]);
+    setAllComments(previous => ({ ...previous, [selectedAsgId]: [...(previous[selectedAsgId] ?? []), commentText.trim()] }));
     setCommentText("");
   };
 
@@ -251,7 +260,7 @@ export default function AssignmentsPage() {
               return (
                 <div
                   key={asg.id}
-                  onClick={() => setSelectedAsgId(asg.id)}
+                  onClick={() => { setSelectedAsgId(asg.id); setFileError(null); setNotificationMsg(null); setCommentsOpen(false); }}
                   className={`p-3.5 border rounded-xl cursor-pointer transition-all ${
                     isSelected 
                       ? "border-[#0f6cbf] bg-blue-50/40 shadow-xs" 
@@ -323,10 +332,10 @@ export default function AssignmentsPage() {
               </div>
               <button 
                 type="button"
-                onClick={() => alert(`Downloading specification brief: ${activeAsg.briefFile}`)}
+                onClick={() => downloadFile(`${activeAsg.id}-practice-brief.txt`, ["SAMPLE ASSIGNMENT BRIEF", activeAsg.courseCode, activeAsg.title, "", ...activeAsg.description, "", "This is sample coursework for the frontend demo."].join("\n"), "text/plain;charset=utf-8")}
                 className="px-3 py-1 bg-white border border-[#ced4da] rounded text-xs text-[#495057] hover:bg-[#f8f9fa] flex items-center gap-1 cursor-pointer"
               >
-                <Download size={13} /> Download brief
+                <Download size={13} /> Download sample brief
               </button>
             </div>
           </div>
@@ -368,7 +377,7 @@ export default function AssignmentsPage() {
                     <td className={`p-3.5 font-semibold ${
                       activeAsg.status === "submitted" ? "text-green-700" : "text-[#495057]"
                     }`}>
-                      {activeAsg.timeRemaining}
+                      {activeAsg.status === "pending" ? "Past sample deadline · practice allowed" : activeAsg.timeRemaining}
                     </td>
                   </tr>
                   <tr>
@@ -391,7 +400,7 @@ export default function AssignmentsPage() {
                   )}
                   {activeAsg.receiptId && (
                     <tr>
-                      <th className="p-3.5 font-semibold text-[#495057]">Cryptographic submission receipt (FR-055)</th>
+                      <th className="p-3.5 font-semibold text-[#495057]">Sample / local reference</th>
                       <td className="p-3.5 font-mono text-green-700 font-bold">
                         {activeAsg.receiptId}
                       </td>
@@ -429,7 +438,8 @@ export default function AssignmentsPage() {
                                 rows={2}
                                 value={commentText}
                                 onChange={(e) => setCommentText(e.target.value)}
-                                placeholder="Add private submission comment for the instructor..."
+                                placeholder="Add a practice note (saved only in this browser)..."
+                                aria-label="Practice note for this assignment"
                                 className="w-full text-xs p-2 border border-[#ced4da] rounded-md bg-white focus:outline-hidden focus:border-[#0f6cbf]"
                               />
                             </div>
@@ -455,25 +465,27 @@ export default function AssignmentsPage() {
                 <div className="border-2 border-dashed border-[#ced4da] rounded-xl p-6 text-center space-y-2 bg-[#f8f9fa]">
                   <UploadCloud size={32} className="mx-auto text-[#0f6cbf]" />
                   <span className="text-xs font-semibold text-[#212529] block">
-                    Drag and drop your solution file (PDF or ZIP archive) here
+                    Select a solution file for local practice
                   </span>
                   <span className="text-[11px] text-[#6c757d] block">
                     Maximum file size: 50MB • Accepted: .pdf, .zip, .tar.gz
                   </span>
 
-                  {selectedUploadFile ? (
+                  {selectedUploadFile && (
                     <div className="p-2 bg-blue-50 border border-blue-200 text-[#0f6cbf] rounded text-xs font-mono w-fit mx-auto">
                       Ready: {selectedUploadFile}
                     </div>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setSelectedUploadFile(`2023t01855_${activeAsg.courseCode.replace(" ", "")}_Solution.pdf`)}
-                      className="px-4 py-2 bg-white border border-[#ced4da] rounded-md text-xs font-semibold text-[#495057] hover:bg-[#f8f9fa] cursor-pointer"
-                    >
-                      Choose file from device
-                    </button>
                   )}
+                  <input key={activeAsg.id} type="file" accept=".pdf,.zip,.tar.gz" aria-label="Choose assignment solution file" className="block mx-auto max-w-full text-xs" onChange={(event) => {
+                    const file = event.target.files?.[0];
+                    if (!file) return;
+                    const error = validateFile(file, [".pdf", ".zip", ".tar.gz"]);
+                    setFileError(error);
+                    setSelectedFiles(previous => ({ ...previous, [selectedAsgId]: error ? undefined : file }));
+                    event.target.value = "";
+                  }} />
+                  {fileError && <p role="alert" className="text-xs text-red-600">{fileError}</p>}
+                  <p className="text-[11px] text-[#6c757d]">Only file details are saved locally. File contents are not uploaded.</p>
                 </div>
 
                 <div className="flex justify-center">
@@ -484,7 +496,7 @@ export default function AssignmentsPage() {
                     className="px-6 py-2.5 bg-[#0f6cbf] hover:bg-[#0d5ca3] disabled:opacity-50 text-white font-semibold text-xs rounded-md shadow-xs transition-colors cursor-pointer flex items-center gap-2"
                   >
                     <Send size={14} />
-                    <span>Save changes & submit assignment</span>
+                    <span>Save practice entry</span>
                   </button>
                 </div>
               </div>
@@ -493,11 +505,9 @@ export default function AssignmentsPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    const revisedFile = prompt("Enter revised file name:", activeAsg.submittedFile);
-                    if (revisedFile) {
-                      setAssignmentsList(prev => prev.map(a => a.id === activeAsg.id ? { ...a, submittedFile: revisedFile } : a));
-                      setNotificationMsg("Submission revised successfully.");
-                    }
+                    setAssignmentsList(previous => previous.map(assignment => assignment.id === activeAsg.id ? { ...assignment, status: "pending", submittedFile: undefined, submittedTime: undefined, receiptId: undefined } : assignment));
+                    setSelectedFiles(previous => ({ ...previous, [selectedAsgId]: undefined }));
+                    setNotificationMsg("Choose a replacement file to save a revised local practice entry.");
                   }}
                   className="px-5 py-2 bg-white border border-[#ced4da] hover:bg-[#f8f9fa] text-[#212529] font-semibold text-xs rounded-md shadow-2xs transition-colors cursor-pointer"
                 >

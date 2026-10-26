@@ -104,7 +104,7 @@ export default function LecturerGradingHubPage() {
   };
 
   return (
-    <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6">
+    <div className="p-0 md:p-8 max-w-7xl mx-auto space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-6">
         <div>
           <span className="text-xs font-mono font-bold text-primary uppercase">
@@ -191,7 +191,7 @@ export default function LecturerGradingHubPage() {
             <CardContent className="p-6 space-y-6 text-xs">
               {saveAlert && (
                 <div className="p-3 bg-green-500/10 border border-green-500/30 text-green-700 dark:text-green-400 rounded-lg flex items-center gap-2">
-                  <CheckCircle2 size={16} /> Marks and qualitative feedback saved successfully!
+                  <CheckCircle2 size={16} /> Demo grade updated in this preview. No official grade was changed.
                 </div>
               )}
 
@@ -204,8 +204,8 @@ export default function LecturerGradingHubPage() {
                     <span className="text-[10px] text-muted-foreground">Received on {selectedSub.submittedAt}</span>
                   </div>
                 </div>
-                <Button size="sm" variant="outline" className="text-xs gap-1.5 h-8">
-                  <Download size={13} /> Download File
+                <Button disabled size="sm" variant="outline" className="text-xs gap-1.5 h-8" title="This sample submission has no attached file.">
+                  <Download size={13} /> Sample file unavailable
                 </Button>
               </div>
 
@@ -298,10 +298,10 @@ export default function LecturerGradingHubPage() {
                 />
                 <div>
                   <span className="font-semibold block text-foreground">
-                    Release Results to Student (SRS FR-077)
+                    Preview released status
                   </span>
                   <span className="text-[11px] text-muted-foreground">
-                    When enabled, marks and rubric breakdown become visible on student transcript.
+                    Changes the status in this preview. Official student transcripts are not updated.
                   </span>
                 </div>
               </label>

@@ -4,13 +4,13 @@ const nextConfig: NextConfig = {
   /* config options here */
   cacheComponents: true,
   partialPrefetching: true,
-  turbopack: {
-    rules: {
-      "*.css": {
-        loaders: ["@tailwindcss/turbopack"],
-        as: "*.css",
-      },
-    },
+  experimental: {
+    // Protected pages wait for a browser-local demo session. The automatic
+    // unauthenticated render cannot validate their navigation/static shell.
+    instantInsights: { validationLevel: "manual-warning" },
+  },
+  redirects() {
+    return [{ source: "/dashboard", destination: "/", permanent: false }];
   },
 };
 

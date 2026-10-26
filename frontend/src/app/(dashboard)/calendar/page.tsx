@@ -6,24 +6,20 @@ import {
   Calendar as CalendarIcon, 
   Clock, 
   MapPin, 
-  Video, 
-  BookOpen, 
   ChevronLeft, 
   ChevronRight,
   Plus,
   Eye,
   EyeOff,
-  Filter,
   CheckCircle2,
-  X,
-  Building2
+  X
 } from "lucide-react";
-import { useTenant } from "@/lib/tenant-context";
+import { calendarDateKey, calendarMonthCells, parseCalendarDate } from "@/lib/calendar-dates";
 
 interface CalendarEventItem {
   id: string;
   day: number;
-  month: number; // 9 = October (0-indexed)
+  month: number; // 0-indexed
   year: number;
   title: string;
   type: "site" | "category" | "course" | "user";
@@ -31,9 +27,16 @@ interface CalendarEventItem {
   courseCode?: string;
 }
 
-export default function CalendarAndTimetablePage() {
-  const { tenant } = useTenant();
+function sampleDateOffset(days: number) {
+  const date = new Date();
+  date.setHours(12, 0, 0, 0);
+  date.setDate(date.getDate() + days);
+  return { day: date.getDate(), month: date.getMonth(), year: date.getFullYear() };
+}
 
+export default function CalendarAndTimetablePage() {
+  const [today] = useState(() => new Date());
+  const [displayedMonth, setDisplayedMonth] = useState(() => new Date(today.getFullYear(), today.getMonth(), 1));
   const [activeTab, setActiveTab] = useState<"calendar" | "timetable">("calendar");
   const [viewMode, setViewMode] = useState<"month" | "upcoming">("month");
   const [courseFilter, setCourseFilter] = useState<string>("all");
@@ -47,43 +50,54 @@ export default function CalendarAndTimetablePage() {
   // New Event Modal state
   const [newEventModalOpen, setNewEventModalOpen] = useState(false);
   const [newEventTitle, setNewEventTitle] = useState("");
-  const [newEventDate, setNewEventDate] = useState("2026-10-18");
+  const [newEventDate, setNewEventDate] = useState(() => calendarDateKey(today));
   const [newEventType, setNewEventType] = useState<"site" | "course" | "user">("user");
+  const [newEventCourse, setNewEventCourse] = useState("IC 3204");
+  const [newEventError, setNewEventError] = useState("");
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEventItem | null>(null);
   const [notificationMsg, setNotificationMsg] = useState<string | null>(null);
 
   // Calendar events list
-  const [events, setEvents] = useState<CalendarEventItem[]>([
-    { id: "ev-1", day: 7, month: 9, year: 2026, title: "Mid-Semester Examinations Commencement", type: "site", time: "09:00 AM" },
-    { id: "ev-2", day: 8, month: 9, year: 2026, title: "IC 3101: Midterm Online Examination", type: "course", courseCode: "IC 3101", time: "10:00 AM - 11:30 AM" },
-    { id: "ev-3", day: 15, month: 9, year: 2026, title: "IC 3101: Raft Go Mini-Project Due", type: "course", courseCode: "IC 3101", time: "11:59 PM" },
-    { id: "ev-4", day: 16, month: 9, year: 2026, title: "IC 3204: Assignment 1 Due", type: "course", courseCode: "IC 3204", time: "11:59 PM" },
-    { id: "ev-5", day: 21, month: 9, year: 2026, title: "IC 3102: Practical Lab 2 Due", type: "course", courseCode: "IC 3102", time: "11:59 PM" },
-    { id: "ev-6", day: 24, month: 9, year: 2026, title: "Study Advisory Consultation Hours", type: "user", time: "02:00 PM - 04:00 PM" }
+  const [events, setEvents] = useState<CalendarEventItem[]>(() => [
+    { id: "ev-1", ...sampleDateOffset(1), title: "Mid-Semester Examinations Commencement", type: "site", time: "09:00 AM" },
+    { id: "ev-2", ...sampleDateOffset(2), title: "IC 3101: Midterm Online Examination", type: "course", courseCode: "IC 3101", time: "10:00 AM - 11:30 AM" },
+    { id: "ev-3", ...sampleDateOffset(4), title: "IC 3101: Raft Go Mini-Project Due", type: "course", courseCode: "IC 3101", time: "11:59 PM" },
+    { id: "ev-4", ...sampleDateOffset(7), title: "IC 3204: Assignment 1 Due", type: "course", courseCode: "IC 3204", time: "11:59 PM" },
+    { id: "ev-5", ...sampleDateOffset(10), title: "IC 3102: Practical Lab 2 Due", type: "course", courseCode: "IC 3102", time: "11:59 PM" },
+    { id: "ev-6", ...sampleDateOffset(14), title: "Study Advisory Consultation Hours", type: "user", time: "02:00 PM - 04:00 PM" }
   ]);
 
   const handleCreateEvent = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newEventTitle.trim()) return;
-    const parts = newEventDate.split("-");
-    const d = parseInt(parts[2], 10);
-    const m = parseInt(parts[1], 10) - 1;
-    const y = parseInt(parts[0], 10);
+    const date = parseCalendarDate(newEventDate);
+    if (!newEventTitle.trim() || !date) {
+      setNewEventError("Enter an event title and a valid date.");
+      return;
+    }
 
     const newEv: CalendarEventItem = {
-      id: `ev-${Date.now()}`,
-      day: d,
-      month: m,
-      year: y,
+      id: crypto.randomUUID(),
+      day: date.getDate(),
+      month: date.getMonth(),
+      year: date.getFullYear(),
       title: newEventTitle.trim(),
       type: newEventType,
-      time: "10:00 AM"
+      time: "All day",
+      courseCode: newEventType === "course" ? newEventCourse : undefined
     };
 
     setEvents(prev => [...prev, newEv]);
     setNewEventTitle("");
+    setNewEventError("");
     setNewEventModalOpen(false);
-    setNotificationMsg(`Event "${newEv.title}" added to calendar.`);
-    setTimeout(() => setNotificationMsg(null), 4000);
+    setDisplayedMonth(new Date(date.getFullYear(), date.getMonth(), 1));
+    setActiveTab("calendar");
+    setViewMode("month");
+    setCourseFilter("all");
+    if (newEv.type === "site") setShowSiteEvents(true);
+    if (newEv.type === "course") setShowCourseEvents(true);
+    if (newEv.type === "user") setShowUserEvents(true);
+    setNotificationMsg(`Event "${newEv.title}" added for this visit. Demo events are not saved to a database.`);
   };
 
   // Filtered events
@@ -94,27 +108,23 @@ export default function CalendarAndTimetablePage() {
     if (e.type === "user" && !showUserEvents) return false;
     if (courseFilter !== "all" && e.courseCode && e.courseCode !== courseFilter) return false;
     return true;
-  });
+  }).sort((a, b) => new Date(a.year, a.month, a.day).getTime() - new Date(b.year, b.month, b.day).getTime());
 
-  // October 2026 calendar days generation (Oct 1 starts on Thursday)
-  // Calendar days: 31 days. Monday = 1, Thu = 4. Leading days from Sep: 28, 29, 30.
-  const daysInMonth = 31;
-  const startDayOfWeek = 4; // 1 = Mon, 2 = Tue, 3 = Wed, 4 = Thu
-  const calendarCells = [];
+  const calendarCells = calendarMonthCells(displayedMonth);
+  const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+  const upcomingEvents = visibleEvents.filter((event) => new Date(event.year, event.month, event.day) >= startOfToday);
+  const monthEvents = visibleEvents.filter((event) => event.month === displayedMonth.getMonth() && event.year === displayedMonth.getFullYear());
+  const monthLabel = displayedMonth.toLocaleDateString("en-GB", { month: "long", year: "numeric" });
 
-  // Leading empty/prior month days
-  for (let i = 1; i < startDayOfWeek; i++) {
-    calendarCells.push({ dayNumber: 27 + i, isCurrentMonth: false });
-  }
-  // Current month days
-  for (let i = 1; i <= daysInMonth; i++) {
-    calendarCells.push({ dayNumber: i, isCurrentMonth: true });
-  }
-  // Trailing next month days to complete 35 cells
-  const remaining = 35 - calendarCells.length;
-  for (let i = 1; i <= remaining; i++) {
-    calendarCells.push({ dayNumber: i, isCurrentMonth: false });
-  }
+  const moveMonth = (offset: number) => {
+    setDisplayedMonth((current) => new Date(current.getFullYear(), current.getMonth() + offset, 1));
+  };
+
+  const openNewEvent = (date: Date) => {
+    setNewEventDate(calendarDateKey(date));
+    setNewEventError("");
+    setNewEventModalOpen(true);
+  };
 
   // Lecture Timetable
   const timetable = [
@@ -141,7 +151,7 @@ export default function CalendarAndTimetablePage() {
       {/* Header & Breadcrumb */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#dee2e6] pb-4">
         <div>
-          <nav className="flex items-center gap-2 text-xs text-[#6c757d] font-medium mb-1">
+          <nav className="flex flex-wrap items-center gap-2 text-xs text-[#6c757d] font-medium mb-1">
             <Link href="/" className="hover:text-[#0f6cbf]">Dashboard</Link>
             <span>/</span>
             <span className="text-[#212529]">Academic Calendar & Timetable</span>
@@ -149,7 +159,7 @@ export default function CalendarAndTimetablePage() {
           <h1 className="text-2xl font-bold text-[#212529]">Calendar & Lecture Timetable</h1>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {/* Tab Selector */}
           <div className="flex bg-[#e9ecef] p-1 rounded-lg text-xs font-medium">
             <button
@@ -158,7 +168,7 @@ export default function CalendarAndTimetablePage() {
                 activeTab === "calendar" ? "bg-white text-[#0f6cbf] font-semibold shadow-2xs" : "text-[#495057]"
               }`}
             >
-              <CalendarIcon size={14} /> Month Calendar (FR-084)
+              <CalendarIcon size={14} /> Month Calendar
             </button>
             <button
               onClick={() => setActiveTab("timetable")}
@@ -166,12 +176,12 @@ export default function CalendarAndTimetablePage() {
                 activeTab === "timetable" ? "bg-white text-[#0f6cbf] font-semibold shadow-2xs" : "text-[#495057]"
               }`}
             >
-              <Clock size={14} /> Weekly Timetable (FR-088)
+              <Clock size={14} /> Weekly Timetable
             </button>
           </div>
 
           <button
-            onClick={() => setNewEventModalOpen(true)}
+            onClick={() => openNewEvent(today)}
             className="px-3 py-1.5 bg-[#0f6cbf] hover:bg-[#0d5ca3] text-white text-xs font-semibold rounded-lg shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer whitespace-nowrap"
           >
             <Plus size={14} /> New event
@@ -179,14 +189,16 @@ export default function CalendarAndTimetablePage() {
         </div>
       </div>
 
+      <p className="text-xs text-[#6c757d]">Sample academic schedule. New events are kept for this visit only and reset when you leave or refresh this page.</p>
+
       {/* Notification Toast */}
       {notificationMsg && (
-        <div className="p-3 bg-green-50 border border-green-300 text-green-800 rounded-lg text-xs flex items-center justify-between shadow-2xs">
-          <div className="flex items-center gap-2 font-medium">
+        <div role="status" className="p-3 bg-green-50 border border-green-300 text-green-800 rounded-lg text-xs flex items-center justify-between shadow-2xs">
+          <div className="flex flex-wrap items-center gap-2 font-medium">
             <CheckCircle2 size={16} className="text-green-600 flex-shrink-0" />
             <span>{notificationMsg}</span>
           </div>
-          <button onClick={() => setNotificationMsg(null)} className="text-green-700 font-bold">×</button>
+          <button onClick={() => setNotificationMsg(null)} aria-label="Dismiss notification" className="text-green-700 font-bold">×</button>
         </div>
       )}
 
@@ -201,22 +213,24 @@ export default function CalendarAndTimetablePage() {
               {/* Calendar Toolbar (Month navigation + Course selector) */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#e9ecef] pb-3">
                 <div className="flex items-center gap-3">
-                  <button className="p-1.5 rounded border border-[#ced4da] hover:bg-[#f8f9fa] text-[#495057] cursor-pointer">
+                  <button onClick={() => moveMonth(-1)} aria-label="Previous month" className="p-1.5 rounded border border-[#ced4da] hover:bg-[#f8f9fa] text-[#495057] cursor-pointer">
                     <ChevronLeft size={16} />
                   </button>
                   <h2 className="text-base font-bold text-[#212529]">
-                    October 2026
+                    {viewMode === "month" ? monthLabel : "Upcoming events"}
                   </h2>
-                  <button className="p-1.5 rounded border border-[#ced4da] hover:bg-[#f8f9fa] text-[#495057] cursor-pointer">
+                  <button onClick={() => moveMonth(1)} aria-label="Next month" className="p-1.5 rounded border border-[#ced4da] hover:bg-[#f8f9fa] text-[#495057] cursor-pointer">
                     <ChevronRight size={16} />
                   </button>
+                  <button onClick={() => { setDisplayedMonth(new Date(today.getFullYear(), today.getMonth(), 1)); setViewMode("month"); }} className="text-xs text-[#0f6cbf] hover:underline">Today</button>
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <select
+                    aria-label="Filter calendar by course"
                     value={courseFilter}
                     onChange={(e) => setCourseFilter(e.target.value)}
-                    className="text-xs border border-[#ced4da] rounded-md px-2.5 py-1.5 bg-white font-medium text-[#495057] focus:outline-hidden"
+                    className="w-full min-w-0 text-xs border border-[#ced4da] rounded-md px-2.5 py-1.5 bg-white font-medium text-[#495057] focus:outline-hidden"
                   >
                     <option value="all">Detailed course: All courses</option>
                     <option value="IC 3204">IC 3204 - Software Quality Assurance</option>
@@ -255,29 +269,31 @@ export default function CalendarAndTimetablePage() {
 
                   {/* Date Cells */}
                   <div className="grid grid-cols-7 divide-x divide-y divide-[#e9ecef] text-xs">
-                    {calendarCells.map((cell, idx) => {
-                      const dayEvents = cell.isCurrentMonth
-                        ? visibleEvents.filter(e => e.day === cell.dayNumber && e.month === 9)
-                        : [];
-                      const isToday = cell.isCurrentMonth && cell.dayNumber === 8;
+                    {calendarCells.map((cell) => {
+                      const dayEvents = visibleEvents.filter(e => e.day === cell.dayNumber && e.month === cell.date.getMonth() && e.year === cell.date.getFullYear());
+                      const isToday = calendarDateKey(cell.date) === calendarDateKey(today);
 
                       return (
                         <div
-                          key={idx}
-                          className={`min-h-[92px] p-1.5 transition-colors ${
+                          key={calendarDateKey(cell.date)}
+                          className={`min-w-0 min-h-[92px] p-0.5 sm:p-1.5 transition-colors ${
                             cell.isCurrentMonth ? "bg-white" : "bg-[#f8f9fa]/60 text-[#adb5bd]"
                           }`}
                         >
                           <div className="flex justify-between items-center mb-1">
-                            <span
-                              className={`w-5 h-5 flex items-center justify-center rounded-full font-mono text-[11px] ${
+                            <button
+                              type="button"
+                              onClick={() => openNewEvent(cell.date)}
+                              aria-label={`Add event on ${cell.date.toLocaleDateString("en-GB")}`}
+                              aria-current={isToday ? "date" : undefined}
+                              className={`w-full sm:w-8 h-10 sm:h-8 flex items-center justify-center rounded-full font-mono text-[11px] ${
                                 isToday
                                   ? "bg-[#0f6cbf] text-white font-bold"
                                   : cell.isCurrentMonth ? "text-[#212529] font-medium" : "text-[#adb5bd]"
                               }`}
                             >
                               {cell.dayNumber}
-                            </span>
+                            </button>
                           </div>
 
                           {/* Events Bullets / Pills */}
@@ -286,16 +302,19 @@ export default function CalendarAndTimetablePage() {
                               const badgeBg = 
                                 ev.type === "site" ? "bg-green-100 text-green-800 border-green-200" :
                                 ev.type === "course" ? "bg-amber-100 text-amber-800 border-amber-200" :
+                                ev.type === "category" ? "bg-purple-100 text-purple-800 border-purple-200" :
                                 "bg-blue-100 text-blue-800 border-blue-200";
 
                               return (
-                                <div
+                                <button
                                   key={ev.id}
-                                  className={`p-1 rounded text-[10px] font-medium border leading-tight truncate cursor-pointer hover:opacity-90 ${badgeBg}`}
+                                  type="button"
+                                  onClick={() => setSelectedEvent(ev)}
+                                  className={`block w-full text-left p-1 rounded text-[10px] font-medium border leading-tight truncate cursor-pointer hover:opacity-90 ${badgeBg}`}
                                   title={`${ev.title} (${ev.time})`}
                                 >
                                   {ev.title}
-                                </div>
+                                </button>
                               );
                             })}
                           </div>
@@ -307,16 +326,18 @@ export default function CalendarAndTimetablePage() {
               ) : (
                 /* Upcoming Events List */
                 <div className="divide-y divide-[#e9ecef] border border-[#dee2e6] rounded-lg">
-                  {visibleEvents.map(ev => (
+                  {upcomingEvents.length === 0 && <p role="status" className="p-6 text-sm text-center text-[#6c757d]">No upcoming events match the selected filters.</p>}
+                  {upcomingEvents.map(ev => (
                     <div key={ev.id} className="p-4 flex items-center justify-between gap-4 hover:bg-[#f8f9fa]">
                       <div>
-                        <span className="text-xs font-mono font-bold text-[#0f6cbf]">October {ev.day}, 2026</span>
+                        <span className="text-xs font-mono font-bold text-[#0f6cbf]">{new Date(ev.year, ev.month, ev.day).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}</span>
                         <h3 className="text-sm font-bold text-[#212529] mt-0.5">{ev.title}</h3>
                         <span className="text-xs text-[#6c757d]">{ev.time}</span>
                       </div>
                       <span className={`px-2 py-0.5 rounded text-[10px] font-mono font-bold uppercase ${
                         ev.type === "site" ? "bg-green-100 text-green-800" :
                         ev.type === "course" ? "bg-amber-100 text-amber-800" :
+                        ev.type === "category" ? "bg-purple-100 text-purple-800" :
                         "bg-blue-100 text-blue-800"
                       }`}>
                         {ev.type}
@@ -338,7 +359,7 @@ export default function CalendarAndTimetablePage() {
               <div className="space-y-3 text-xs">
                 {/* Site Event Toggle */}
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span className="w-3 h-3 rounded-full bg-green-500" />
                     <span className="text-[#212529] font-medium">Site event</span>
                   </div>
@@ -352,7 +373,7 @@ export default function CalendarAndTimetablePage() {
 
                 {/* Course Event Toggle */}
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span className="w-3 h-3 rounded-full bg-amber-500" />
                     <span className="text-[#212529] font-medium">Course event</span>
                   </div>
@@ -366,7 +387,7 @@ export default function CalendarAndTimetablePage() {
 
                 {/* User Event Toggle */}
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span className="w-3 h-3 rounded-full bg-blue-500" />
                     <span className="text-[#212529] font-medium">User event</span>
                   </div>
@@ -380,7 +401,7 @@ export default function CalendarAndTimetablePage() {
 
                 {/* Category Event Toggle */}
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span className="w-3 h-3 rounded-full bg-purple-500" />
                     <span className="text-[#212529] font-medium">Category event</span>
                   </div>
@@ -400,12 +421,11 @@ export default function CalendarAndTimetablePage() {
                 Monthly Quick View
               </h3>
               <p className="text-xs text-[#6c757d] leading-relaxed">
-                Click any highlighted cell to view assessment deadlines or schedule private consultation entries.
+                Select an event to view details, or a date number to add an event for this visit.
               </p>
               <div className="p-3 bg-[#f8f9fa] border border-[#e9ecef] rounded-lg text-xs space-y-1.5 font-mono">
-                <div>Total Active Deadlines: <strong>4</strong></div>
-                <div>Exams Scheduled: <strong>2</strong></div>
-                <div>Current Semester: <strong>Semester 1</strong></div>
+                <div>Visible events in {monthLabel}: <strong>{monthEvents.length}</strong></div>
+                <div>Upcoming visible events: <strong>{upcomingEvents.length}</strong></div>
               </div>
             </div>
           </div>
@@ -428,7 +448,7 @@ export default function CalendarAndTimetablePage() {
                   {t.slots.map((s, idx) => (
                     <div key={idx} className="p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-3 hover:bg-[#f8f9fa] transition-colors">
                       <div className="space-y-1">
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap items-center gap-2">
                           <span className="font-mono font-bold text-[#0f6cbf] bg-blue-50 border border-blue-200 px-2 py-0.5 rounded text-[11px]">
                             {s.course}
                           </span>
@@ -457,20 +477,24 @@ export default function CalendarAndTimetablePage() {
       {/* MODAL: CREATE NEW CALENDAR EVENT                           */}
       {/* ======================================================== */}
       {newEventModalOpen && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 space-y-4">
+        <div className="lms-modal fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div role="dialog" aria-modal="true" aria-labelledby="new-event-heading" onKeyDown={(event) => { if (event.key === "Escape") setNewEventModalOpen(false); }} className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 space-y-4">
             <div className="flex justify-between items-center border-b border-[#e9ecef] pb-3">
-              <h3 className="text-sm font-bold text-[#212529]">New event</h3>
-              <button onClick={() => setNewEventModalOpen(false)} className="text-[#6c757d] hover:text-[#212529]">
+              <h3 id="new-event-heading" className="text-sm font-bold text-[#212529]">New event</h3>
+              <button onClick={() => setNewEventModalOpen(false)} aria-label="Close new event" className="text-[#6c757d] hover:text-[#212529]">
                 <X size={16} />
               </button>
             </div>
 
             <form onSubmit={handleCreateEvent} className="space-y-4 text-xs">
+              <p className="text-[#6c757d]">This demo event will be available until you leave or refresh this page.</p>
+              {newEventError && <p role="alert" className="text-red-700">{newEventError}</p>}
               <div className="space-y-1">
-                <label className="font-semibold text-[#495057]">Event title</label>
+                <label htmlFor="event-title" className="font-semibold text-[#495057]">Event title</label>
                 <input
                   type="text"
+                  id="event-title"
+                  autoFocus
                   required
                   placeholder="e.g. Study Group / Practical Consultation"
                   value={newEventTitle}
@@ -481,19 +505,24 @@ export default function CalendarAndTimetablePage() {
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
-                  <label className="font-semibold text-[#495057]">Date</label>
+                  <label htmlFor="event-date" className="font-semibold text-[#495057]">Date</label>
                   <input
                     type="date"
+                    id="event-date"
+                    required
+                    min="1900-01-01"
+                    max="9999-12-31"
                     value={newEventDate}
                     onChange={(e) => setNewEventDate(e.target.value)}
                     className="w-full p-2 border border-[#ced4da] rounded-md focus:border-[#0f6cbf] focus:outline-hidden font-mono"
                   />
                 </div>
                 <div className="space-y-1">
-                  <label className="font-semibold text-[#495057]">Type of event</label>
+                  <label htmlFor="event-type" className="font-semibold text-[#495057]">Type of event</label>
                   <select
+                    id="event-type"
                     value={newEventType}
-                    onChange={(e) => setNewEventType(e.target.value as any)}
+                    onChange={(e) => setNewEventType(e.target.value as "site" | "course" | "user")}
                     className="w-full p-2 border border-[#ced4da] rounded-md focus:border-[#0f6cbf] focus:outline-hidden"
                   >
                     <option value="user">User event</option>
@@ -502,6 +531,17 @@ export default function CalendarAndTimetablePage() {
                   </select>
                 </div>
               </div>
+
+              {newEventType === "course" && (
+                <div className="space-y-1">
+                  <label htmlFor="event-course" className="font-semibold text-[#495057]">Course</label>
+                  <select id="event-course" value={newEventCourse} onChange={(event) => setNewEventCourse(event.target.value)} className="w-full p-2 border border-[#ced4da] rounded-md">
+                    <option value="IC 3204">IC 3204 - Software Quality Assurance</option>
+                    <option value="IC 3101">IC 3101 - Web Application Architectures</option>
+                    <option value="IC 3102">IC 3102 - Distributed Database Systems</option>
+                  </select>
+                </div>
+              )}
 
               <div className="pt-2 flex justify-end gap-2 border-t border-[#e9ecef]">
                 <button
@@ -519,6 +559,17 @@ export default function CalendarAndTimetablePage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {selectedEvent && (
+        <div className="lms-modal fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div role="dialog" aria-modal="true" aria-labelledby="event-detail-heading" onKeyDown={(event) => { if (event.key === "Escape") setSelectedEvent(null); }} className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 space-y-4">
+            <h3 id="event-detail-heading" className="font-bold text-[#212529]">{selectedEvent.title}</h3>
+            <p className="text-sm text-[#495057]">{new Date(selectedEvent.year, selectedEvent.month, selectedEvent.day).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" })} · {selectedEvent.time}</p>
+            <p className="text-xs text-[#6c757d]">{selectedEvent.courseCode || `${selectedEvent.type} event`}</p>
+            <button autoFocus onClick={() => setSelectedEvent(null)} className="px-4 py-2 bg-[#0f6cbf] text-white rounded-md text-xs font-semibold">Close</button>
           </div>
         </div>
       )}

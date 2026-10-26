@@ -34,7 +34,7 @@ export default function LecturerFeedbackTrendsPage() {
   ];
 
   return (
-    <div className="p-6 md:p-8 max-w-6xl mx-auto space-y-6">
+    <div className="p-0 md:p-8 max-w-6xl mx-auto space-y-6">
       <div className="border-b pb-6">
         <span className="text-xs font-mono font-bold text-primary uppercase">
           Quality Assurance & Student Evaluation (SRS §6.15, FR-121)
@@ -98,7 +98,7 @@ export default function LecturerFeedbackTrendsPage() {
                   <span className="text-muted-foreground font-mono">{fb.date}</span>
                 </div>
                 <p className="text-foreground leading-relaxed italic">
-                  "{fb.comment}"
+                  &ldquo;{fb.comment}&rdquo;
                 </p>
                 <div className="text-[10px] text-muted-foreground font-mono">
                   Submitted as: Anonymous Student • Course: {fb.course}

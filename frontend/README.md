@@ -1,36 +1,42 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# LMS frontend
 
-## Getting Started
+The frontend is a Next.js demo with sample student, lecturer, and administrator workspaces.
 
-First, run the development server:
+## Run locally
 
-```bash
+Use Node.js 24 or newer.
+
+```powershell
+cd frontend
+npm ci
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000. A fresh browser opens the login page. The login screen lists the available demo accounts. Successful sign-in opens the correct role dashboard or restores an allowed deep link. Logout ends the demo session and closes dashboard access.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Development and production use Webpack with the official Tailwind PostCSS plugin. This avoids the Turbopack CSS worker startup failure observed on Windows.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Check changes
 
-## Learn More
+```powershell
+npm test
+npx tsc --noEmit
+npm run lint
+npm run build
+```
 
-To learn more about Next.js, take a look at the following resources:
+The regression tests cover sessions (including blocked storage), safe login redirects, role navigation, course routing, exam deadlines and completion, file validation, calendar alignment, saved-state recovery, and CSV escaping.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Demo data and persistence
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+No frontend page currently calls the backend or a database. Demo sign-in uses the sample accounts in `src/lib/tenant-context.tsx`; browser-stored usernames are not production authentication.
 
-## Deploy on Vercel
+Course enrolments, created courses, course sections, practice exam answers/deadlines, assignment metadata/notes, selected branding, and some administration lists are saved in browser storage. They do not synchronize to other devices or change institutional records. Other preview controls, including calendar events and sample evaluations, last for the current visit.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+File selectors validate real selections, but only filenames and metadata are retained. File contents are not uploaded. Practice completion references are local identifiers, not official submission receipts or grades. Report and attendance exports contain sample data; assessment exports are drafts.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Production account registration, password recovery, authorization, official submissions, grade publication, and staff messages require backend services and server-verified authentication.
+
+## Vercel
+
+Set the Vercel project's Root Directory to `frontend`, use the Next.js framework preset, and build with `npm run build`. Redeploy after reviewing these changes; local edits do not update an existing deployment.

@@ -29,7 +29,7 @@ interface AtRiskStudent {
 }
 
 export default function LecturerAtRiskStudentsPage() {
-  const { tenant } = useTenant();
+  const { tenant, user } = useTenant();
 
   const [students, setStudents] = useState<AtRiskStudent[]>([
     {
@@ -65,7 +65,7 @@ export default function LecturerAtRiskStudentsPage() {
     const entry = {
       date: new Date().toISOString().split("T")[0],
       note: newNote,
-      author: "Dr. Aruna Pathirana (Course Lecturer)"
+      author: user.name
     };
     setStudents(prev => prev.map(s => {
       if (s.id !== selectedStudent.id) return s;
@@ -78,7 +78,7 @@ export default function LecturerAtRiskStudentsPage() {
   };
 
   return (
-    <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6">
+    <div className="p-0 md:p-8 max-w-7xl mx-auto space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-6">
         <div>
           <span className="text-xs font-mono font-bold text-primary uppercase">
@@ -152,7 +152,7 @@ export default function LecturerAtRiskStudentsPage() {
             <CardContent className="p-6 space-y-6 text-xs">
               {noteSuccess && (
                 <div className="p-3 bg-green-500/10 border border-green-500/30 text-green-700 dark:text-green-400 rounded-lg flex items-center gap-2">
-                  <CheckCircle2 size={16} /> Support note recorded in student academic profile!
+                  <CheckCircle2 size={16} /> Note added to this preview. It is not saved to an academic record.
                 </div>
               )}
 

@@ -61,8 +61,7 @@ export function AIChatbotDrawer() {
     {
       id: "1",
       sender: "ai",
-      text: `Hello ${user.displayName}! I am your **${tenant.shortName} AI Academic Assistant**. I can answer questions about your courses (e.g. IC 3204, IC 3101), assignment deadlines, and exam regulations.`,
-      sources: [`Faculty of Technology Authorized Course Knowledge Base`],
+      text: `Hello ${user.displayName}! This ${tenant.shortName} support demo gives preset answers about the sample courses. Confirm real deadlines and regulations with your institution.`,
       timestamp: "Just now"
     }
   ]);
@@ -76,7 +75,7 @@ export function AIChatbotDrawer() {
     if (!q.trim()) return;
 
     const userMsg: Message = {
-      id: Date.now().toString(),
+      id: crypto.randomUUID(),
       sender: "user",
       text: q,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -89,14 +88,16 @@ export function AIChatbotDrawer() {
       const lower = q.toLowerCase();
       let matched = PRESET_KNOWLEDGE["sqa"];
 
-      if (lower.includes("exam") || lower.includes("timetable") || lower.includes("final")) {
+      if (lower.includes("appeal") || lower.includes("recheck") || lower.includes("grade")) {
+        matched = PRESET_KNOWLEDGE["appeal"];
+      } else if (lower.includes("exam") || lower.includes("timetable") || lower.includes("final")) {
         matched = PRESET_KNOWLEDGE["exam"];
       } else if (lower.includes("attend") || lower.includes("eligib") || lower.includes("percent")) {
         matched = PRESET_KNOWLEDGE["attendance"];
       } else if (lower.includes("docker") || lower.includes("container") || lower.includes("3101")) {
         matched = PRESET_KNOWLEDGE["docker"];
-      } else if (lower.includes("appeal") || lower.includes("recheck") || lower.includes("grade")) {
-        matched = PRESET_KNOWLEDGE["appeal"];
+      } else if (lower.includes("3204") || lower.includes("sqa") || lower.includes("assignment")) {
+        matched = PRESET_KNOWLEDGE["sqa"];
       } else {
         matched = {
           answer: `Regarding *"\\"${q}\\"*: Based on your enrolled courses in **${tenant.facultyName}**, this topic is covered under Semester 1 curriculum modules. Please verify the relevant lecture handouts or ask your course coordinator for specific rubric clarification.`,
@@ -105,7 +106,7 @@ export function AIChatbotDrawer() {
       }
 
       const aiMsg: Message = {
-        id: (Date.now() + 1).toString(),
+        id: crypto.randomUUID(),
         sender: "ai",
         text: matched.answer,
         sources: matched.sources,
@@ -130,32 +131,35 @@ export function AIChatbotDrawer() {
   return (
     <>
       {/* Discreet Academic Support Button */}
-      <div className="fixed bottom-5 right-5 z-40">
+      <div className="fixed bottom-4 right-4 sm:bottom-5 sm:right-5 z-40">
         <button
+          aria-label="LMS Support Demo"
+          aria-expanded={isOpen}
           onClick={() => setIsOpen(!isOpen)}
-          className="h-10 px-4 bg-[#0f6cbf] hover:bg-[#0d5ca3] text-white rounded-full shadow-md flex items-center gap-2 text-xs font-semibold transition-all cursor-pointer border border-[#0d5ca3]"
+          className="h-11 w-11 sm:w-auto sm:px-4 justify-center bg-[#0f6cbf] hover:bg-[#0d5ca3] text-white rounded-full shadow-md flex items-center gap-2 text-xs font-semibold transition-all cursor-pointer border border-[#0d5ca3]"
         >
           <Sparkles className="w-4 h-4" />
-          <span>LMS Support & AI Tutor</span>
+          <span className="hidden sm:inline">LMS Support Demo</span>
         </button>
       </div>
 
       {/* Slide-out Drawer */}
       {isOpen && (
-        <div className="fixed bottom-18 right-5 w-[420px] max-w-[94vw] h-[580px] max-h-[82vh] bg-white border border-[#dee2e6] rounded-xl shadow-2xl z-50 flex flex-col overflow-hidden text-[#212529]">
+        <div className="fixed bottom-18 right-3 sm:right-5 w-[420px] max-w-[calc(100%-1.5rem)] h-[580px] max-h-[calc(100dvh-6rem)] bg-white border border-[#dee2e6] rounded-xl shadow-2xl z-50 flex flex-col overflow-hidden text-[#212529]">
           {/* Header */}
           <div className="p-3.5 bg-[#0f6cbf] text-white flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Bot className="w-5 h-5" />
               <div>
                 <div className="font-bold text-xs flex items-center gap-1.5">
-                  <span>Faculty AI Academic Assistant</span>
-                  <span className="text-[10px] bg-green-500 text-white font-medium px-1.5 py-0.2 rounded-full">Grounded</span>
+                  <span>Faculty Support Assistant</span>
+                  <span className="text-[10px] bg-green-500 text-white font-medium px-1.5 py-0.2 rounded-full">Demo</span>
                 </div>
-                <div className="text-[10px] text-white/80">University of Colombo Faculty of Technology</div>
+                <div className="text-[10px] text-white/80">{tenant.shortName}</div>
               </div>
             </div>
             <button
+              aria-label="Close support assistant"
               onClick={() => setIsOpen(false)}
               className="text-white hover:bg-white/20 p-1 rounded-full cursor-pointer"
             >
@@ -166,11 +170,11 @@ export function AIChatbotDrawer() {
           {/* Policy Guardrail Notice */}
           <div className="bg-[#fff3cd] border-b border-[#ffeeba] px-3 py-1.5 text-[11px] text-[#856404] flex items-center gap-2">
             <ShieldAlert className="w-3.5 h-3.5 flex-shrink-0" />
-            <span>Answers grounded in authorized course materials. AI cannot modify marks.</span>
+            <span>Preset sample answers. No messages are sent to university staff.</span>
           </div>
 
           {/* Messages Area */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-3 text-xs bg-[#f8f9fa]">
+          <div className="flex-1 min-h-0 overflow-y-auto p-4 space-y-3 text-xs bg-[#f8f9fa]">
             {messages.map((m) => (
               <div
                 key={m.id}
@@ -183,12 +187,12 @@ export function AIChatbotDrawer() {
                       : "bg-white border border-[#dee2e6] text-[#212529] rounded-bl-none shadow-xs"
                   }`}
                 >
-                  <p className="whitespace-pre-line">{m.text}</p>
+                  <p className="whitespace-pre-line break-words">{m.text}</p>
 
                   {m.sources && m.sources.length > 0 && (
                     <div className="mt-2 pt-2 border-t border-[#e9ecef] text-[11px]">
                       <div className="font-semibold text-[#6c757d] flex items-center gap-1 mb-1">
-                        <FileText className="w-3 h-3 text-[#0f6cbf]" /> Sources Cited:
+                        <FileText className="w-3 h-3 text-[#0f6cbf]" /> Sample references:
                       </div>
                       <div className="space-y-0.5">
                         {m.sources.map((s, idx) => (
@@ -209,7 +213,7 @@ export function AIChatbotDrawer() {
                         onClick={() => setEscalated(true)}
                       >
                         <UserCheck className="w-3 h-3" />
-                        Escalate to Senior Assistant Registrar (Exams)
+                        How to contact examinations staff
                       </Button>
                     </div>
                   )}
@@ -223,12 +227,12 @@ export function AIChatbotDrawer() {
           </div>
 
           {/* Quick Prompts Bar */}
-          <div className="p-2 border-t border-[#dee2e6] bg-white overflow-x-auto flex gap-1.5">
+          <div className="lms-chat-prompts p-2 border-t border-[#dee2e6] bg-white overflow-x-auto flex gap-1.5">
             {quickPrompts.map((qp, i) => (
               <button
                 key={i}
                 onClick={() => handleSend(qp)}
-                className="text-[10px] whitespace-nowrap bg-[#f8f9fa] hover:bg-[#e9ecef] text-[#495057] px-2 py-1 rounded-full border border-[#dee2e6] transition-colors cursor-pointer"
+                className="text-[10px] shrink-0 whitespace-nowrap bg-[#f8f9fa] hover:bg-[#e9ecef] text-[#495057] px-2 py-1 rounded-full border border-[#dee2e6] transition-colors cursor-pointer"
               >
                 {qp}
               </button>
@@ -238,6 +242,7 @@ export function AIChatbotDrawer() {
           {/* Input Box */}
           <div className="p-2.5 border-t border-[#dee2e6] bg-white flex items-center gap-2">
             <Input
+              aria-label="Support question"
               placeholder="Ask about courses, deadlines, grades..."
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -245,6 +250,7 @@ export function AIChatbotDrawer() {
               className="text-xs h-9 focus-visible:ring-1 focus-visible:ring-[#0f6cbf]"
             />
             <Button
+              aria-label="Send support question"
               size="icon"
               className="h-9 w-9 bg-[#0f6cbf] hover:bg-[#0d5ca3] text-white rounded-lg flex-shrink-0"
               onClick={() => handleSend()}
@@ -257,19 +263,19 @@ export function AIChatbotDrawer() {
 
       {/* Escalation Confirmation Modal */}
       {escalated && (
-        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+        <div className="lms-modal fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
           <div className="max-w-md w-full bg-white border border-[#dee2e6] rounded-xl shadow-xl p-6 space-y-3 text-xs">
             <div className="flex items-center gap-2 text-green-700 font-bold text-sm">
               <CheckCircle2 className="w-5 h-5 text-green-600" />
-              Ticket Escalated (Ticket #LMS-2026-8492)
+              Contact your institution
             </div>
             <p className="text-[#495057]">
-              Your academic inquiry has been forwarded to the <strong>Senior Assistant Registrar (Examinations)</strong>.
+              Contact your faculty examinations office through your institution’s official support channel. This demo has not forwarded your inquiry or created a ticket.
             </p>
             <div className="p-2.5 bg-[#f8f9fa] border border-[#dee2e6] rounded font-mono text-[11px] space-y-1">
               <div>Student: {user.name} ({user.indexNo})</div>
               <div>Faculty: Faculty of Technology</div>
-              <div>Status: Queued for Examination Board Review</div>
+              <div>Status: No request sent</div>
             </div>
             <Button className="w-full text-xs h-9 bg-[#0f6cbf] text-white mt-2" onClick={() => setEscalated(false)}>
               Return to Chat

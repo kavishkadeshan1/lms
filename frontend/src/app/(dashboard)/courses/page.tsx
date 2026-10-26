@@ -1,7 +1,10 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { Suspense, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { INITIAL_COURSES, normalizeCourseId, type CourseItem } from "@/lib/course-catalog";
+import { useLocalState } from "@/lib/use-local-state";
 import { 
   Search, 
   MoreVertical, 
@@ -21,31 +24,15 @@ import {
 } from "lucide-react";
 import { useTenant } from "@/lib/tenant-context";
 
-interface CourseItem {
-  id: string;
-  code: string;
-  title: string;
-  department: "DICT" | "DBST" | "DET" | "DIAT";
-  departmentName: string;
-  category: string;
-  lecturer: string;
-  gradient: string;
-  progress: number;
-  enrolled: boolean;
-  selfEnrollable: boolean;
-  enrollmentKey?: string;
-  studentsCount: number;
-}
-
-export default function CoursesPage() {
+function CoursesContent({ initialSearch }: { initialSearch: string }) {
   const { tenant, user } = useTenant();
   const isInstructor = user.role === "lecturer" || user.role === "admin";
 
   // Tab State: "enrolled" (My Enrolled Courses) vs "catalogue" (Full Faculty Catalogue)
-  const [activeTab, setActiveTab] = useState<"enrolled" | "catalogue">("enrolled");
+  const [activeTab, setActiveTab] = useState<"enrolled" | "catalogue">(initialSearch ? "catalogue" : "enrolled");
   const [deptFilter, setDeptFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [search, setSearch] = useState("");
+  const [search, setSearch] = useState(initialSearch);
 
   // Notification Banner
   const [notice, setNotice] = useState<string | null>(null);
@@ -65,112 +52,7 @@ export default function CoursesPage() {
   const [newCategory, setNewCategory] = useState("Level 3 - Semester 1");
   const [newEnrollKey, setNewEnrollKey] = useState("FOT2026");
 
-  const [courses, setCourses] = useState<CourseItem[]>([
-    {
-      id: "ic-3204",
-      code: "IC 3204",
-      title: "Introduction to Software Quality Assurance",
-      department: "DICT",
-      departmentName: "Department of Information and Communication Technology",
-      category: "Level 3 - Semester 1",
-      lecturer: "Dr. Aruna Pathirana",
-      gradient: "from-purple-600 via-indigo-600 to-blue-700",
-      progress: 44,
-      enrolled: true,
-      selfEnrollable: true,
-      enrollmentKey: "SQA2026",
-      studentsCount: 145
-    },
-    {
-      id: "ic-3101",
-      code: "IC 3101",
-      title: "Advanced Web Application Architectures",
-      department: "DICT",
-      departmentName: "Department of Information and Communication Technology",
-      category: "Level 3 - Semester 1",
-      lecturer: "Dr. Aruna Pathirana",
-      gradient: "from-blue-600 via-teal-600 to-cyan-700",
-      progress: 75,
-      enrolled: true,
-      selfEnrollable: true,
-      enrollmentKey: "WEB3101",
-      studentsCount: 140
-    },
-    {
-      id: "ic-3102",
-      code: "IC 3102",
-      title: "Distributed Database Systems & Cloud Sharding",
-      department: "DICT",
-      departmentName: "Department of Information and Communication Technology",
-      category: "Level 3 - Semester 1",
-      lecturer: "Prof. K. A. S. Fernando",
-      gradient: "from-slate-700 via-gray-800 to-zinc-900",
-      progress: 88,
-      enrolled: true,
-      selfEnrollable: false,
-      studentsCount: 135
-    },
-    {
-      id: "et-2105",
-      code: "ET 2105",
-      title: "Embedded Systems, Industrial IoT & Edge Devices",
-      department: "DET",
-      departmentName: "Department of Engineering Technology",
-      category: "Level 2 - Semester 2",
-      lecturer: "Dr. R. M. Wijesinghe",
-      gradient: "from-amber-700 via-orange-600 to-red-800",
-      progress: 30,
-      enrolled: true,
-      selfEnrollable: true,
-      enrollmentKey: "IOT2026",
-      studentsCount: 110
-    },
-    {
-      id: "bst-3104",
-      code: "BST 3104",
-      title: "Bioprocess Engineering Principles & Bioreactors",
-      department: "DBST",
-      departmentName: "Department of Biosystems Technology",
-      category: "Level 3 - Semester 1",
-      lecturer: "Dr. S. M. Senanayake",
-      gradient: "from-emerald-700 via-teal-700 to-green-800",
-      progress: 0,
-      enrolled: false,
-      selfEnrollable: true,
-      enrollmentKey: "BIO3104",
-      studentsCount: 95
-    },
-    {
-      id: "iat-3102",
-      code: "IAT 3102",
-      title: "Industrial Robotics & Autonomous Motion Control",
-      department: "DIAT",
-      departmentName: "Department of Instrumentation & Automation",
-      category: "Level 3 - Semester 1",
-      lecturer: "Dr. P. L. Perera",
-      gradient: "from-cyan-700 via-blue-700 to-indigo-800",
-      progress: 0,
-      enrolled: false,
-      selfEnrollable: true,
-      enrollmentKey: "ROBOT2026",
-      studentsCount: 80
-    },
-    {
-      id: "ic-3205",
-      code: "IC 3205",
-      title: "Cloud Native DevOps & Site Reliability Engineering",
-      department: "DICT",
-      departmentName: "Department of Information and Communication Technology",
-      category: "Level 3 - Semester 2",
-      lecturer: "Eng. Chathura Silva",
-      gradient: "from-rose-700 via-pink-700 to-red-800",
-      progress: 0,
-      enrolled: false,
-      selfEnrollable: true,
-      enrollmentKey: "DEVOPS2026",
-      studentsCount: 120
-    }
-  ]);
+  const [courses, setCourses] = useLocalState<CourseItem[]>(`lms:courses:${tenant.id}:${user.username}`, INITIAL_COURSES);
 
   // Filter logic
   const filteredCourses = courses.filter((c) => {
@@ -216,7 +98,11 @@ export default function CoursesPage() {
       DIAT: "Department of Instrumentation & Automation"
     };
 
-    const newId = newCode.toLowerCase().replace(/\s+/g, "-");
+    const newId = normalizeCourseId(newCode);
+    if (!newId || courses.some(course => course.id === newId)) {
+      setNotice("A course with this code already exists. Use a different course code.");
+      return;
+    }
 
     const created: CourseItem = {
       id: newId,
@@ -238,7 +124,7 @@ export default function CoursesPage() {
     setShowCreateModal(false);
     setNewCode("");
     setNewTitle("");
-    setNotice(`Course ${created.code}: ${created.title} created successfully.`);
+    setNotice(`Course ${created.code}: ${created.title} saved in this browser.`);
     setTimeout(() => setNotice(null), 4000);
   };
 
@@ -251,7 +137,7 @@ export default function CoursesPage() {
 
   const handleEnrollSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedCourseForEnroll) return;
+    if (!selectedCourseForEnroll || !selectedCourseForEnroll.selfEnrollable) return;
 
     if (selectedCourseForEnroll.enrollmentKey && enteredKey.trim() !== selectedCourseForEnroll.enrollmentKey) {
       setEnrollKeyError(true);
@@ -260,11 +146,11 @@ export default function CoursesPage() {
 
     setCourses(prev => prev.map(c => {
       if (c.id !== selectedCourseForEnroll.id) return c;
-      return { ...c, enrolled: true, studentsCount: c.studentsCount + 1 };
+      return c.enrolled ? c : { ...c, enrolled: true, studentsCount: c.studentsCount + 1 };
     }));
 
     setShowEnrollModal(false);
-    setNotice(`Enrolled successfully in ${selectedCourseForEnroll.code}: ${selectedCourseForEnroll.title}!`);
+    setNotice(`Local enrolment saved for ${selectedCourseForEnroll.code}: ${selectedCourseForEnroll.title}!`);
     setTimeout(() => setNotice(null), 4000);
   };
 
@@ -485,11 +371,12 @@ export default function CoursesPage() {
                   <div className="pt-3">
                     <button
                       type="button"
+                      disabled={!course.selfEnrollable}
                       onClick={() => handleOpenEnrollDialog(course)}
                       className="w-full py-2 bg-[#0f6cbf] hover:bg-[#0d5ca3] text-white text-xs font-semibold rounded-md shadow-2xs transition-colors cursor-pointer flex items-center justify-center gap-1.5"
                     >
                       <Key size={13} />
-                      <span>Enrol in Course</span>
+                      <span>{course.selfEnrollable ? "Enrol in Course" : "Contact course coordinator"}</span>
                     </button>
                   </div>
                 )}
@@ -503,7 +390,7 @@ export default function CoursesPage() {
       {/* MODAL: CREATE NEW COURSE (SRS FR-034)                    */}
       {/* ======================================================== */}
       {showCreateModal && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+        <div className="lms-modal fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
           <div className="bg-white border border-[#dee2e6] rounded-xl shadow-2xl max-w-lg w-full p-6 space-y-4 text-xs text-[#212529] animate-in zoom-in-95">
             <div className="flex justify-between items-center border-b border-[#e9ecef] pb-3">
               <div>
@@ -542,7 +429,7 @@ export default function CoursesPage() {
                   <label className="font-semibold text-[#495057] block">Academic Department</label>
                   <select
                     value={newDept}
-                    onChange={(e) => setNewDept(e.target.value as any)}
+                    onChange={(e) => setNewDept(e.target.value as CourseItem["department"])}
                     className="w-full p-2 border border-[#ced4da] rounded bg-white text-xs text-[#495057]"
                   >
                     <option value="DICT">Dept of ICT (DICT)</option>
@@ -634,7 +521,7 @@ export default function CoursesPage() {
       {/* MODAL: SELF-ENROLMENT IN COURSE (SRS FR-046)             */}
       {/* ======================================================== */}
       {showEnrollModal && selectedCourseForEnroll && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+        <div className="lms-modal fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
           <div className="bg-white border border-[#dee2e6] rounded-xl shadow-2xl max-w-md w-full p-6 space-y-4 text-xs text-[#212529] animate-in zoom-in-95">
             <div className="flex justify-between items-center border-b border-[#e9ecef] pb-3">
               <div>
@@ -708,4 +595,13 @@ export default function CoursesPage() {
       )}
     </div>
   );
+}
+
+function CoursesWithSearch() {
+  const search = useSearchParams().get("search") ?? "";
+  return <CoursesContent key={search} initialSearch={search} />;
+}
+
+export default function CoursesPage() {
+  return <Suspense fallback={<p>Loading courses…</p>}><CoursesWithSearch /></Suspense>;
 }

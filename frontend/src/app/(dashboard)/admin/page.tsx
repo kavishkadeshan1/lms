@@ -33,6 +33,7 @@ import {
   Cell
 } from "recharts";
 import { useTenant } from "@/lib/tenant-context";
+import { downloadFile, toCsv } from "@/lib/download";
 
 // Time series active users data (SRS FR-106, FR-113)
 const engagementData = [
@@ -68,12 +69,17 @@ export default function AdminAnalyticsDashboard() {
   const [exportNotice, setExportNotice] = useState(false);
 
   const handleExport = () => {
+    downloadFile("sample-weekly-engagement.csv", "\uFEFF" + toCsv([
+      ["Sample data — not live institutional records"],
+      ["Day", "Daily active users", "Submissions", "AI queries"],
+      ...engagementData.map(row => [row.day, row.dau, row.submissions, row.aiQueries]),
+    ]), "text/csv;charset=utf-8");
     setExportNotice(true);
     setTimeout(() => setExportNotice(false), 3000);
   };
 
   return (
-    <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6">
+    <div className="p-0 md:p-8 max-w-7xl mx-auto space-y-6">
       {/* Dashboard Top Header */}
       <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b pb-6">
         <div>
@@ -84,14 +90,14 @@ export default function AdminAnalyticsDashboard() {
             LMS Usage & Academic Analytics Dashboard
           </h1>
           <p className="text-xs text-muted-foreground mt-1">
-            Real-time engagement telemetry, student risk indicators, assessment distributions, and AI assistant query volumes.
+            Sample engagement, student risk, assessment, and AI assistant data for the frontend preview.
           </p>
         </div>
 
         <div className="flex items-center gap-3">
           {exportNotice && (
             <span className="text-xs font-bold text-green-600 flex items-center gap-1 animate-in fade-in">
-              <CheckCircle2 size={15} /> Export Dispatched (CSV/PDF)!
+              <CheckCircle2 size={15} /> Sample CSV downloaded
             </span>
           )}
           <Button 
@@ -99,7 +105,7 @@ export default function AdminAnalyticsDashboard() {
             variant="outline" 
             className="text-xs gap-2 font-medium"
           >
-            <Download size={14} /> Export Report (FR-115)
+            <Download size={14} /> Export sample CSV
           </Button>
         </div>
       </div>
@@ -110,7 +116,7 @@ export default function AdminAnalyticsDashboard() {
           <div className="flex items-center gap-2 mb-3 text-xs font-bold uppercase tracking-wider text-muted-foreground">
             <Filter size={13} /> Dashboard Multi-Dimensional Filters (SRS §15.1)
           </div>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 text-xs">
             <div>
               <label className="text-muted-foreground block mb-1">Time Horizon</label>
               <select
@@ -167,7 +173,7 @@ export default function AdminAnalyticsDashboard() {
       </Card>
 
       {/* KPI Cards Grid (SRS §15) */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-5 flex items-center justify-between">
             <div>
@@ -230,7 +236,7 @@ export default function AdminAnalyticsDashboard() {
               <CardTitle className="text-sm font-bold">Daily Active Users & Submissions Trend (FR-106, FR-108)</CardTitle>
               <CardDescription className="text-xs">Correlates student logins with assignment submission deadlines.</CardDescription>
             </div>
-            <span className="text-xs font-mono font-bold text-primary">Live Telemetry</span>
+            <span className="text-xs font-mono font-bold text-primary">Sample data</span>
           </CardHeader>
           <CardContent className="p-4 pt-6 h-[320px]">
             <ResponsiveContainer width="100%" height="100%">

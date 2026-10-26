@@ -5,19 +5,14 @@ import Link from "next/link";
 import { 
   Search, 
   Download, 
-  Calendar, 
   ChevronRight, 
   ChevronLeft,
-  ChevronDown,
-  Paperclip,
   CheckCircle2,
   Plus,
   Edit2,
   Trash2,
   Pin,
   X,
-  Send,
-  HelpCircle,
   FileArchive,
   FileText,
   MessageSquare,
@@ -25,6 +20,7 @@ import {
   ZoomIn
 } from "lucide-react";
 import { useTenant } from "@/lib/tenant-context";
+import { calendarDateKey, calendarMonthCells } from "@/lib/calendar-dates";
 
 interface AnnouncementItem {
   id: string;
@@ -47,8 +43,8 @@ export default function HomePage() {
   const canManageAnnouncements = user.role === "admin" || (user.role === "lecturer" && editMode);
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [calendarMonth, setCalendarMonth] = useState("October 2026");
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [calendarMonth, setCalendarMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1));
+  const [sidebarOpen] = useState(true);
 
   // Real announcements matching lms.tech.cmb.ac.lk exactly
   const [announcements, setAnnouncements] = useState<AnnouncementItem[]>([
@@ -124,6 +120,8 @@ export default function HomePage() {
   const [lightboxPosterCaption, setLightboxPosterCaption] = useState<string | null>(null);
 
   const [notificationMsg, setNotificationMsg] = useState<string | null>(null);
+  const miniCalendarCells = calendarMonthCells(calendarMonth);
+  const miniCalendarLabel = calendarMonth.toLocaleDateString("en", { month: "long", year: "numeric" });
 
   const handleOpenAdd = () => {
     setFormTitle("");
@@ -295,7 +293,7 @@ export default function HomePage() {
 
                 <button
                   type="button"
-                  onClick={() => alert("Subscribed to email digest for Site Announcements.")}
+                  onClick={() => setNotificationMsg("Email subscriptions are unavailable in this frontend preview.")}
                   className="text-xs text-[#0f6cbf] hover:underline font-medium cursor-pointer"
                 >
                   Subscribe to forum
@@ -326,12 +324,12 @@ export default function HomePage() {
                           {ann.pinned && (
                             <Pin size={12} className="text-[#0f6cbf] flex-shrink-0" />
                           )}
-                          <h3 className="text-base font-bold text-[#0f6cbf] hover:underline cursor-pointer leading-snug">
+                        <h3 id={`announcement-${ann.id}`} className="text-base font-bold text-[#0f6cbf] leading-snug">
                             {ann.title}
                           </h3>
                         </div>
                         <div className="text-xs text-[#6c757d] mt-0.5">
-                          by <span className="text-[#0f6cbf] hover:underline font-semibold cursor-pointer">{ann.author}</span> - {ann.date}
+                          by <span className="font-semibold">{ann.author}</span> - {ann.date}
                         </div>
                       </div>
                     </div>
@@ -405,46 +403,35 @@ export default function HomePage() {
                   {/* File Attachment Line (Authentic Moodle mod_forum attachment) */}
                   {ann.attachment && (
                     <div className="pt-1">
-                      <div className="inline-flex items-center gap-2 p-2 bg-[#f8f9fa] border border-[#dee2e6] rounded text-xs">
+                      <div className="inline-flex max-w-full flex-wrap items-center gap-2 p-2 bg-[#f8f9fa] border border-[#dee2e6] rounded text-xs">
                         {ann.attachment.endsWith(".zip") ? (
                           <FileArchive size={15} className="text-[#0f6cbf]" />
                         ) : (
                           <FileText size={15} className="text-[#dc3545]" />
                         )}
-                        <span className="font-mono text-xs text-[#0f6cbf] hover:underline cursor-pointer">
+                        <span className="font-mono text-xs break-all text-[#0f6cbf] hover:underline cursor-pointer">
                           {ann.attachment}
                         </span>
                         <span className="text-[11px] text-[#6c757d]">({ann.attachmentSize || "PDF"})</span>
-                        <button
-                          type="button"
-                          onClick={() => alert(`Downloading attachment: ${ann.attachment}`)}
-                          className="text-[11px] text-[#495057] hover:text-[#0f6cbf] flex items-center gap-0.5 ml-2 cursor-pointer font-medium"
-                        >
-                          <Download size={11} /> Download
-                        </button>
+                        <span className="text-[11px] text-[#6c757d] flex items-center gap-0.5 ml-2 font-medium">
+                          <FileText size={11} /> File unavailable in sample preview
+                        </span>
                       </div>
                     </div>
                   )}
 
                   {/* Post Footer Links (Permalink and Discussion Link) */}
                   <div className="pt-2 border-t border-[#f1f3f5] flex justify-end items-center gap-4 text-xs">
-                    <button className="text-[#0f6cbf] hover:underline cursor-pointer">
+                    <a href={`#announcement-${ann.id}`} className="text-[#0f6cbf] hover:underline">
                       Permalink
-                    </button>
-                    <button className="text-[#0f6cbf] hover:underline cursor-pointer font-semibold">
-                      Discuss this topic (0 replies so far)
-                    </button>
+                    </a>
+                    <Link href="/feedback" className="text-[#0f6cbf] hover:underline font-semibold">Open sample feedback</Link>
                   </div>
                 </article>
               ))}
             </div>
 
-            {/* Pagination Link */}
-            <div className="pt-2 text-left">
-              <button className="text-xs text-[#0f6cbf] hover:underline font-medium cursor-pointer">
-                Older topics...
-              </button>
-            </div>
+            <p className="pt-2 text-left text-xs text-[#6c757d]">All sample notices are shown.</p>
           </section>
 
           {/* 4. Authentic Course Search Box (Centered below announcements) */}
@@ -452,24 +439,23 @@ export default function HomePage() {
             <span className="text-xs font-semibold text-[#495057]">
               Search courses:
             </span>
-            <div className="flex items-center gap-2 w-full max-w-md">
+            <form action="/courses" method="get" className="flex items-center gap-2 w-full max-w-md">
               <input
                 type="text"
+                name="search"
                 placeholder="Search by course name or code..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full px-4 py-2 border border-[#ced4da] rounded-full text-xs bg-white focus:outline-hidden focus:border-[#0f6cbf]"
               />
-              <Link href={`/courses?search=${encodeURIComponent(searchQuery)}`}>
                 <button
-                  type="button"
+                  type="submit"
                   className="px-4 py-2 bg-[#0f6cbf] hover:bg-[#0d5ca3] text-white rounded-full text-xs font-semibold cursor-pointer transition-colors whitespace-nowrap flex items-center gap-1.5"
                 >
                   <Search size={13} />
                   <span>Search</span>
                 </button>
-              </Link>
-            </div>
+            </form>
           </section>
         </div>
 
@@ -481,11 +467,11 @@ export default function HomePage() {
               <div className="flex items-center justify-between border-b border-[#dee2e6] pb-2">
                 <h3 className="text-sm font-bold text-[#212529]">Calendar</h3>
                 <div className="flex items-center gap-1">
-                  <button className="p-1 text-[#6c757d] hover:text-[#212529] cursor-pointer">
+                  <button type="button" aria-label="Previous month" onClick={() => setCalendarMonth((month) => new Date(month.getFullYear(), month.getMonth() - 1, 1))} className="p-1 text-[#6c757d] hover:text-[#212529] cursor-pointer">
                     <ChevronLeft size={14} />
                   </button>
-                  <span className="text-xs font-bold text-[#495057]">{calendarMonth}</span>
-                  <button className="p-1 text-[#6c757d] hover:text-[#212529] cursor-pointer">
+                  <span className="text-xs font-bold text-[#495057]">{miniCalendarLabel}</span>
+                  <button type="button" aria-label="Next month" onClick={() => setCalendarMonth((month) => new Date(month.getFullYear(), month.getMonth() + 1, 1))} className="p-1 text-[#6c757d] hover:text-[#212529] cursor-pointer">
                     <ChevronRight size={14} />
                   </button>
                 </div>
@@ -497,36 +483,10 @@ export default function HomePage() {
                   <span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span><span>Su</span>
                 </div>
                 <div className="grid grid-cols-7 gap-1 text-xs font-mono">
-                  <span className="text-[#adb5bd] py-1">29</span>
-                  <span className="text-[#adb5bd] py-1">30</span>
-                  <span className="py-1 cursor-pointer hover:bg-gray-100 rounded">1</span>
-                  <span className="py-1 cursor-pointer hover:bg-gray-100 rounded">2</span>
-                  <span className="py-1 cursor-pointer hover:bg-gray-100 rounded">3</span>
-                  <span className="py-1 cursor-pointer hover:bg-gray-100 rounded">4</span>
-                  <span className="py-1 cursor-pointer hover:bg-gray-100 rounded">5</span>
-
-                  <span className="py-1 cursor-pointer hover:bg-gray-100 rounded">6</span>
-                  <span className="py-1 cursor-pointer hover:bg-gray-100 rounded">7</span>
-                  {/* Today (Oct 8) Highlighted with Solid Blue Circle */}
-                  <span className="py-1 bg-[#0f6cbf] text-white font-bold rounded-full cursor-pointer">8</span>
-                  <span className="py-1 cursor-pointer hover:bg-gray-100 rounded">9</span>
-                  <span className="py-1 cursor-pointer hover:bg-gray-100 rounded">10</span>
-                  <span className="py-1 cursor-pointer hover:bg-gray-100 rounded">11</span>
-                  <span className="py-1 cursor-pointer hover:bg-gray-100 rounded">12</span>
-
-                  <span className="py-1 cursor-pointer hover:bg-gray-100 rounded">13</span>
-                  <span className="py-1 cursor-pointer hover:bg-gray-100 rounded">14</span>
-                  <span className="py-1 relative cursor-pointer hover:bg-gray-100 rounded">
-                    15
-                    <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 bg-amber-500 rounded-full" />
-                  </span>
-                  <span className="py-1 relative cursor-pointer hover:bg-gray-100 rounded">
-                    16
-                    <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 bg-amber-500 rounded-full" />
-                  </span>
-                  <span className="py-1 cursor-pointer hover:bg-gray-100 rounded">17</span>
-                  <span className="py-1 cursor-pointer hover:bg-gray-100 rounded">18</span>
-                  <span className="py-1 cursor-pointer hover:bg-gray-100 rounded">19</span>
+                  {miniCalendarCells.map(({ date, dayNumber, isCurrentMonth }) => {
+                    const isToday = calendarDateKey(date) === calendarDateKey(new Date());
+                    return <Link key={calendarDateKey(date)} href="/calendar" aria-current={isToday ? "date" : undefined} className={`rounded py-1 text-center hover:bg-gray-100 ${isToday ? "bg-[#0f6cbf] text-white font-bold hover:bg-[#0d5ca3]" : isCurrentMonth ? "text-[#212529]" : "text-[#adb5bd]"}`}>{dayNumber}</Link>;
+                  })}
                 </div>
               </div>
 
@@ -534,9 +494,9 @@ export default function HomePage() {
               <div className="pt-2 border-t border-[#dee2e6] text-[11px] text-[#0f6cbf] flex items-center justify-between">
                 <Link href="/calendar" className="hover:underline">Full calendar</Link>
                 <span>•</span>
-                <button type="button" onClick={() => alert("Calendar iCal export ready.")} className="hover:underline cursor-pointer">
+                <Link href="/calendar" className="hover:underline">
                   Import or export calendars
-                </button>
+                </Link>
               </div>
             </div>
 
@@ -570,7 +530,7 @@ export default function HomePage() {
               </h3>
               <div className="space-y-2 text-xs">
                 <div className="text-[11px] text-[#6c757d]">
-                  Activity since Wednesday, 7 October 2026, 10:00 PM
+                  Sample activity feed · preview data only
                 </div>
                 <div className="pt-1">
                   <div className="font-semibold text-[#212529] text-[11px]">New forum posts:</div>
@@ -590,22 +550,22 @@ export default function HomePage() {
       </div>
 
       {/* Floating Moodle Help Button '?' */}
-      <div className="fixed bottom-6 right-6 z-30">
-        <button
-          type="button"
-          onClick={() => alert("Faculty of Technology LMS Help Desk: contact lms-support@tech.cmb.ac.lk")}
+      <div className="fixed bottom-20 right-4 sm:right-6 z-30">
+        <Link
+          href="/help#support"
           className="w-10 h-10 rounded-full bg-white border border-[#ced4da] shadow-md text-[#495057] hover:text-[#0f6cbf] hover:bg-[#f8f9fa] flex items-center justify-center font-bold text-sm cursor-pointer transition-colors"
           title="Help and documentation"
+          aria-label="Help and documentation"
         >
           ?
-        </button>
+        </Link>
       </div>
 
       {/* ======================================================== */}
       {/* MODAL 1: ADD ANNOUNCEMENT (Moodle Forum Topic Style)     */}
       {/* ======================================================== */}
       {isAddModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 overflow-y-auto">
+        <div className="lms-modal fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white border border-[#dee2e6] rounded-xl shadow-2xl max-w-lg w-full p-6 space-y-4 animate-in zoom-in-95 text-xs text-[#212529] my-8">
             <div className="flex justify-between items-center border-b border-[#dee2e6] pb-3">
               <div>
@@ -743,7 +703,7 @@ export default function HomePage() {
       {/* MODAL 2: EDIT ANNOUNCEMENT                               */}
       {/* ======================================================== */}
       {isEditModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 overflow-y-auto">
+        <div className="lms-modal fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="bg-white border border-[#dee2e6] rounded-xl shadow-2xl max-w-lg w-full p-6 space-y-4 animate-in zoom-in-95 text-xs text-[#212529] my-8">
             <div className="flex justify-between items-center border-b border-[#dee2e6] pb-3">
               <div>

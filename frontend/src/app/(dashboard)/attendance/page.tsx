@@ -35,7 +35,7 @@ export default function StudentAttendancePage() {
   ];
 
   return (
-    <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6">
+    <div className="p-0 md:p-8 max-w-7xl mx-auto space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-6">
         <div>
           <span className="text-xs font-mono font-bold text-primary uppercase">
@@ -54,7 +54,7 @@ export default function StudentAttendancePage() {
       </div>
 
       {/* Course Attendance Summary Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {coursesAttendance.map((ca) => (
           <Card key={ca.code} className="border shadow-xs">
             <CardHeader className="p-4 pb-2">
@@ -101,7 +101,8 @@ export default function StudentAttendancePage() {
           <CardDescription>Records marked by course instructors during lecture hours.</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="border rounded-xl divide-y text-xs">
+          <p className="px-4 py-2 text-xs text-muted-foreground md:hidden">Swipe horizontally to view all columns.</p>
+          <div className="lms-data-grid border rounded-xl divide-y text-xs" role="region" aria-label="Scrollable records" tabIndex={0}>
             <div className="p-3.5 grid grid-cols-12 font-bold bg-muted/40 text-muted-foreground">
               <div className="col-span-2">Date</div>
               <div className="col-span-2">Course Code</div>

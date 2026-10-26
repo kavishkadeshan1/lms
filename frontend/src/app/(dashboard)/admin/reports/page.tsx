@@ -17,6 +17,7 @@ import {
   Sparkles
 } from "lucide-react";
 import { useTenant } from "@/lib/tenant-context";
+import { downloadFile, toCsv } from "@/lib/download";
 
 interface ReportItem {
   id: string;
@@ -90,17 +91,17 @@ export default function ReportsHubPage() {
     }
   ];
 
-  const handleSimulateDownload = (report: ReportItem, format: string) => {
+  const handleDownload = (report: ReportItem, format: string) => {
     setDownloadingId(`${report.id}-${format}`);
-    setTimeout(() => {
-      setDownloadingId(null);
-      setSuccessReport(`${report.title} (${format})`);
-      setTimeout(() => setSuccessReport(null), 3000);
-    }, 1200);
+    const summary = { title: report.title, category: report.category, description: report.description, notice: "Sample report summary only. No institutional records are included." };
+    const content = format === "JSON" ? JSON.stringify(summary, null, 2) : "\uFEFF" + toCsv([Object.keys(summary), Object.values(summary)]);
+    downloadFile(`${report.id}-sample-summary.${format.toLowerCase()}`, content, format === "JSON" ? "application/json" : "text/csv;charset=utf-8");
+    setDownloadingId(null);
+    setSuccessReport(`${report.title} (${format} sample summary)`);
   };
 
   return (
-    <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6">
+    <div className="p-0 md:p-8 max-w-7xl mx-auto space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-6">
         <div>
           <span className="text-xs font-mono font-bold text-primary uppercase">
@@ -110,7 +111,7 @@ export default function ReportsHubPage() {
             Institutional Reports & Data Exports
           </h1>
           <p className="text-xs text-muted-foreground mt-1">
-            Generate and export accredited academic records, examination eligibility lists, and LMS engagement data for {tenant.name}.
+            Browse sample report descriptions for {tenant.name}. Downloadable summaries contain no institutional records.
           </p>
         </div>
       </div>
@@ -144,7 +145,7 @@ export default function ReportsHubPage() {
 
               {/* Export format buttons (SRS FR-142) */}
               <div className="flex flex-wrap items-center gap-2">
-                {rep.formats.map((fmt) => {
+                {["CSV", "JSON"].map((fmt) => {
                   const isDownloading = downloadingId === `${rep.id}-${fmt}`;
                   return (
                     <Button
@@ -152,11 +153,11 @@ export default function ReportsHubPage() {
                       variant="outline"
                       size="sm"
                       disabled={isDownloading}
-                      onClick={() => handleSimulateDownload(rep, fmt)}
+                      onClick={() => handleDownload(rep, fmt)}
                       className="text-xs font-mono h-8 px-3 gap-1.5 hover:bg-primary hover:text-white transition-colors"
                     >
                       <Download size={13} />
-                      <span>{isDownloading ? "Compiling..." : `Export ${fmt}`}</span>
+                      <span>{isDownloading ? "Preparing..." : `Summary ${fmt}`}</span>
                     </Button>
                   );
                 })}

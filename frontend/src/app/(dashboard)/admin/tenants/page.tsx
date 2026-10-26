@@ -16,12 +16,13 @@ import {
   MoreVertical,
   Activity
 } from "lucide-react";
-import { useTenant, PRESET_TENANTS, TenantInfo } from "@/lib/tenant-context";
+import { useTenant, PRESET_TENANTS } from "@/lib/tenant-context";
+import { useLocalState } from "@/lib/use-local-state";
 
 export default function TenantsManagementPage() {
-  const { tenant, setTenant, allTenants } = useTenant();
+  const { tenant, setTenant, user } = useTenant();
 
-  const [tenantsList, setTenantsList] = useState([
+  const [tenantsList, setTenantsList] = useLocalState(`lms:tenants:${user.username}`, [
     {
       ...PRESET_TENANTS.uoc_fot,
       status: "Active",
@@ -51,15 +52,25 @@ export default function TenantsManagementPage() {
   const [showAddTenant, setShowAddTenant] = useState(false);
   const [newTenantName, setNewTenantName] = useState("");
   const [newSubdomain, setNewSubdomain] = useState("");
+  const [formError, setFormError] = useState("");
 
   const handleCreateTenant = () => {
-    if (!newTenantName || !newSubdomain) return;
-    const newId = newSubdomain.split(".")[0] || "tenant-new";
+    const name = newTenantName.trim();
+    const domain = newSubdomain.trim().toLowerCase();
+    if (!name || !/^(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z]{2,}$/.test(domain)) {
+      setFormError("Enter an institution name and a domain such as lms.example.edu.");
+      return;
+    }
+    if (tenantsList.some(item => item.subdomain.toLowerCase() === domain)) {
+      setFormError("An institution with this domain already exists.");
+      return;
+    }
+    const newId = `tenant-${domain}`;
     const newT = {
       id: newId,
-      name: newTenantName,
-      shortName: newTenantName.split(" ")[0] || "NEW",
-      subdomain: newSubdomain,
+      name,
+      shortName: name.split(" ")[0],
+      subdomain: domain,
       tagline: "Academic Center of Excellence",
       primaryColor: "#0f766e",
       secondaryColor: "#14b8a6",
@@ -75,13 +86,14 @@ export default function TenantsManagementPage() {
       createdDate: new Date().toISOString().split("T")[0]
     };
     setTenantsList(prev => [...prev, newT]);
+    setFormError("");
     setShowAddTenant(false);
     setNewTenantName("");
     setNewSubdomain("");
   };
 
   return (
-    <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6">
+    <div className="p-0 md:p-8 max-w-7xl mx-auto space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-6">
         <div>
           <span className="text-xs font-mono font-bold text-primary uppercase">
@@ -99,7 +111,7 @@ export default function TenantsManagementPage() {
           className="text-xs gap-2 text-white"
           style={{ backgroundColor: tenant.primaryColor }}
         >
-          <Plus size={15} /> Provision New Institution (FR-001)
+          <Plus size={15} /> Add demo institution
         </Button>
       </div>
 
@@ -129,9 +141,10 @@ export default function TenantsManagementPage() {
               />
             </div>
           </div>
+          {formError && <p role="alert" className="text-xs text-red-600">{formError}</p>}
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="ghost" size="sm" onClick={() => setShowAddTenant(false)} className="text-xs">Cancel</Button>
-            <Button size="sm" onClick={handleCreateTenant} className="text-xs">Provision Tenant Instance</Button>
+            <Button size="sm" onClick={handleCreateTenant} className="text-xs">Add to preview</Button>
           </div>
         </Card>
       )}
@@ -161,7 +174,7 @@ export default function TenantsManagementPage() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-2 text-xs font-mono text-muted-foreground">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 pt-2 text-xs font-mono text-muted-foreground">
                     <div>
                       <span>Enrolled Students:</span>
                       <strong className="block text-foreground">{t.studentsCount}</strong>
@@ -185,10 +198,7 @@ export default function TenantsManagementPage() {
                   <Button
                     variant={isCurrentActive ? "secondary" : "outline"}
                     size="sm"
-                    onClick={() => {
-                      const found = allTenants.find(item => item.id === t.id);
-                      if (found) setTenant(found);
-                    }}
+                    onClick={() => setTenant(t)}
                     className="text-xs font-semibold"
                   >
                     {isCurrentActive ? "Current Workspace" : "Switch Context"}

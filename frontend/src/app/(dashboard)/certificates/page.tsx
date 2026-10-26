@@ -1,17 +1,11 @@
 "use client";
 
-import React, { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { 
   Award, 
-  Download, 
   ExternalLink, 
-  CheckCircle2, 
   QrCode, 
-  ShieldCheck, 
-  Sparkles,
-  Calendar
 } from "lucide-react";
 import { useTenant } from "@/lib/tenant-context";
 
@@ -46,22 +40,22 @@ export default function CertificatesPage() {
   ];
 
   return (
-    <div className="p-6 md:p-8 max-w-6xl mx-auto space-y-6">
+    <div className="p-0 md:p-8 max-w-6xl mx-auto space-y-6">
       <div className="border-b pb-6">
         <span className="text-xs font-mono font-bold text-primary uppercase">
-          Credentials & Badges (SRS §6.17, §20, FR-132 - FR-135)
+          Sample credentials · public verification is unavailable
         </span>
         <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight mt-1">
           Certificates & Micro-Credentials
         </h1>
         <p className="text-xs text-muted-foreground mt-1">
-          Cryptographically verifiable institutional completion credentials issued by {tenant.name}.
+          These illustrative certificates are sample preview data and are not official institutional credentials.
         </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {certificates.map((cert) => (
-          <Card key={cert.id} className="overflow-hidden border-2 shadow-lg hover:border-primary/50 transition-colors">
+          <Card key={cert.id} className="certificate-print-target overflow-hidden border-2 shadow-lg hover:border-primary/50 transition-colors">
             {/* Certificate Header Banner */}
             <div 
               className="p-6 text-white space-y-2 relative"
@@ -70,7 +64,7 @@ export default function CertificatesPage() {
               <div className="flex justify-between items-start">
                 <span className="text-2xl">{tenant.crestIcon}</span>
                 <span className="bg-white/20 backdrop-blur-md px-2 py-0.5 rounded text-[10px] font-mono uppercase">
-                  Verified Credential
+                Sample Credential
                 </span>
               </div>
               <h3 className="font-extrabold text-base leading-snug">{cert.title}</h3>
@@ -99,19 +93,19 @@ export default function CertificatesPage() {
               <div className="p-3 border rounded-xl flex items-center justify-between bg-background">
                 <div className="space-y-0.5">
                   <span className="text-[10px] font-mono text-muted-foreground block">Verification Hash (FR-135):</span>
-                  <span className="font-mono font-bold text-primary text-xs">{cert.verificationCode}</span>
+                  <span className="font-mono font-bold text-primary text-xs break-all">{cert.verificationCode}</span>
                 </div>
                 <div className="w-9 h-9 bg-muted rounded flex items-center justify-center text-primary font-bold">
                   <QrCode size={22} />
                 </div>
               </div>
 
-              <div className="pt-2 flex gap-2">
-                <Button variant="outline" size="sm" className="w-full text-xs gap-1.5">
-                  <Download size={14} /> Download PDF
+              <div className="pt-2 grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <Button type="button" variant="outline" size="sm" className="w-full text-xs gap-1.5" onClick={() => window.print()}>
+                  <Award size={14} /> Print / Save as PDF
                 </Button>
-                <Button size="sm" className="w-full text-xs gap-1.5 text-white" style={{ backgroundColor: tenant.primaryColor }}>
-                  <ExternalLink size={14} /> Public Verification
+                <Button type="button" disabled title="Official public verification is not connected for sample credentials." size="sm" className="w-full text-xs gap-1.5 text-white" style={{ backgroundColor: tenant.primaryColor }}>
+                  <ExternalLink size={14} /> Verification unavailable
                 </Button>
               </div>
             </CardContent>

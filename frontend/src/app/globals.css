@@ -128,3 +128,88 @@
     @apply font-sans;
   }
 }
+
+/* Shared sizing rules keep grid/flex children from forcing the page wider
+   than its viewport. Wide records scroll in their own labelled region. */
+.lms-content :where(.grid, .flex) > * {
+  min-width: 0;
+}
+.lms-content :where(h1, h2, h3, p, [data-slot="card-title"], [data-slot="card-description"]) {
+  overflow-wrap: anywhere;
+}
+.lms-data-grid {
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+.lms-data-grid > * {
+  min-width: 720px;
+  column-gap: 0.5rem;
+}
+.lms-data-grid:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+.lms-modal > * {
+  max-height: calc(100dvh - 2rem);
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+}
+
+@media (max-width: 639px) {
+  /* 16px fields prevent iOS from zooming the page on focus. */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="color"]),
+  textarea, select {
+    font-size: 16px;
+    min-height: 44px;
+    max-width: 100%;
+  }
+  button, [data-slot="button"], .lms-shell header a,
+  #account-panel a, .lms-shell footer a {
+    min-height: 44px;
+  }
+  button, [data-slot="button"] {
+    white-space: normal;
+  }
+  .lms-chat-prompts button {
+    white-space: nowrap;
+  }
+  .lms-shell header a, .lms-shell footer a {
+    display: inline-flex;
+    align-items: center;
+  }
+  .lms-content [data-slot="card-content"].p-6,
+  .lms-content section.p-6,
+  .lms-content div.p-6 {
+    padding: 1rem;
+  }
+  .lms-modal .grid-cols-2 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  [data-slot="tabs-list"] {
+    width: 100%;
+    height: auto;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+  }
+  [data-slot="tabs-trigger"] {
+    flex: 1 1 100%;
+    height: auto;
+  }
+}
+
+@media print {
+  @page { margin: 14mm; }
+  body * { visibility: hidden !important; }
+  .certificate-print-target,
+  .certificate-print-target * { visibility: visible !important; }
+  .certificate-print-target {
+    position: relative !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 0 12mm !important;
+    border: 1px solid #999 !important;
+    box-shadow: none !important;
+    break-inside: avoid;
+  }
+}

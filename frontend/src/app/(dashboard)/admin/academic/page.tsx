@@ -20,12 +20,13 @@ import {
   X
 } from "lucide-react";
 import { useTenant } from "@/lib/tenant-context";
+import { useLocalState } from "@/lib/use-local-state";
 
 export default function AcademicStructurePage() {
-  const { tenant } = useTenant();
+  const { tenant, user } = useTenant();
 
   // Mock academic structure modeled on University of Colombo Faculty of Technology
-  const [departments, setDepartments] = useState([
+  const [departments, setDepartments] = useLocalState(`lms:departments:${tenant.id}:${user.username}`, [
     {
       id: "dict",
       code: "DICT",
@@ -64,7 +65,7 @@ export default function AcademicStructurePage() {
     }
   ]);
 
-  const [semesters, setSemesters] = useState([
+  const [semesters, setSemesters] = useLocalState(`lms:semesters:${tenant.id}:${user.username}`, [
     { id: "2026-s1", name: "2025/2026 Academic Year — Semester 1", startDate: "2026-06-01", endDate: "2026-11-30", status: "Active (Teaching & Midterms)" },
     { id: "2026-s2", name: "2025/2026 Academic Year — Semester 2", startDate: "2026-12-15", endDate: "2027-04-30", status: "Upcoming Planning" },
     { id: "2025-s2", name: "2024/2025 Academic Year — Semester 2", startDate: "2025-12-01", endDate: "2026-05-15", status: "Archived / Results Published" }
@@ -80,15 +81,26 @@ export default function AcademicStructurePage() {
   const [newSemStart, setNewSemStart] = useState("2026-11-01");
   const [newSemEnd, setNewSemEnd] = useState("2027-04-30");
   const [newSemStatus, setNewSemStatus] = useState("Upcoming Planning");
+  const [departmentError, setDepartmentError] = useState("");
+  const [semesterError, setSemesterError] = useState("");
 
   const handleAddDept = () => {
-    if (!newDeptName || !newDeptCode) return;
+    const name = newDeptName.trim();
+    const code = newDeptCode.trim().toUpperCase();
+    if (!name || !/^[A-Z0-9-]+$/.test(code)) {
+      setDepartmentError("Enter a department name and a code containing letters, numbers, or hyphens.");
+      return;
+    }
+    if (departments.some(department => department.code === code)) {
+      setDepartmentError("This department code already exists.");
+      return;
+    }
     setDepartments(prev => [
       ...prev,
       {
-        id: newDeptCode.toLowerCase(),
-        code: newDeptCode.toUpperCase(),
-        name: newDeptName,
+        id: code.toLowerCase(),
+        code,
+        name,
         head: "Appointed Department Head",
         programmes: [`Bachelor of Technology (${newDeptCode})`],
         studentCount: 0,
@@ -96,13 +108,17 @@ export default function AcademicStructurePage() {
       }
     ]);
     setNewDeptName("");
+    setDepartmentError("");
     setNewDeptCode("");
     setShowAddDept(false);
   };
 
   const handleAddSemester = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newSemName.trim()) return;
+    if (!newSemName.trim() || !newSemStart || !newSemEnd || newSemEnd < newSemStart) {
+      setSemesterError("Enter a semester name and an end date on or after the start date.");
+      return;
+    }
     setSemesters(prev => [
       ...prev,
       {
@@ -114,11 +130,12 @@ export default function AcademicStructurePage() {
       }
     ]);
     setShowAddSemesterModal(false);
+    setSemesterError("");
     setNewSemName("");
   };
 
   return (
-    <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6">
+    <div className="p-0 md:p-8 max-w-7xl mx-auto space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-6">
         <div>
           <span className="text-xs font-mono font-bold text-primary uppercase">
@@ -167,6 +184,7 @@ export default function AcademicStructurePage() {
                 />
               </div>
             </div>
+            {departmentError && <p role="alert" className="text-xs text-red-600">{departmentError}</p>}
             <div className="flex justify-end gap-2 pt-2">
               <Button variant="ghost" size="sm" onClick={() => setShowAddDept(false)} className="text-xs">Cancel</Button>
               <Button size="sm" onClick={handleAddDept} className="text-xs">Save Department</Button>
@@ -176,7 +194,7 @@ export default function AcademicStructurePage() {
       )}
 
       {/* Academic Hierarchy Summary Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
             <div className="p-2.5 rounded-xl bg-blue-500/10 text-blue-600">
@@ -300,8 +318,9 @@ export default function AcademicStructurePage() {
               </Button>
             </CardHeader>
             <CardContent>
-              <div className="border rounded-xl divide-y text-xs">
-                <div className="p-3.5 grid grid-cols-4 font-bold bg-muted/30">
+              <p className="px-4 py-2 text-xs text-muted-foreground md:hidden">Swipe horizontally to view all columns.</p>
+          <div className="lms-data-grid border rounded-xl divide-y text-xs" role="region" aria-label="Scrollable records" tabIndex={0}>
+            <div className="p-3.5 grid grid-cols-4 font-bold bg-muted/30">
                   <div>Academic Period</div>
                   <div>Start Date</div>
                   <div>End Date</div>
@@ -354,7 +373,7 @@ export default function AcademicStructurePage() {
 
       {/* Modal: Add Semester / Term Period (SRS FR-028, FR-029) */}
       {showAddSemesterModal && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+        <div className="lms-modal fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
           <Card className="max-w-md w-full animate-in zoom-in-95">
             <CardHeader className="border-b pb-3">
               <div className="flex justify-between items-center">
@@ -375,6 +394,7 @@ export default function AcademicStructurePage() {
             </CardHeader>
             <CardContent className="pt-4 text-xs">
               <form onSubmit={handleAddSemester} className="space-y-3.5">
+                {semesterError && <p role="alert" className="text-red-600">{semesterError}</p>}
                 <div className="space-y-1">
                   <label className="font-semibold block">Academic Period Name</label>
                   <Input
@@ -403,6 +423,7 @@ export default function AcademicStructurePage() {
                       type="date"
                       required
                       value={newSemEnd}
+                      min={newSemStart}
                       onChange={(e) => setNewSemEnd(e.target.value)}
                       className="text-xs h-9 font-mono"
                     />

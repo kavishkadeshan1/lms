@@ -4,37 +4,32 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { 
   Clock, 
-  Calendar, 
   Search, 
   FileText, 
   File, 
-  Folder, 
   Users, 
-  CheckCircle2, 
-  ChevronRight, 
-  ChevronLeft,
   CheckSquare,
   Activity,
-  Award,
   BookOpen,
   PlusCircle,
   AlertTriangle,
-  Star,
-  Settings,
   ShieldCheck,
-  Building2,
   Palette,
   FolderTree,
   FileSpreadsheet
 } from "lucide-react";
 import { useTenant } from "@/lib/tenant-context";
+import { calendarDateKey, calendarMonthCells } from "@/lib/calendar-dates";
 
 export default function DashboardPage() {
-  const { tenant, user } = useTenant();
+  const { user } = useTenant();
 
   // Student specific timeline state
   const [timelineFilter, setTimelineFilter] = useState("next7");
   const [timelineSearch, setTimelineSearch] = useState("");
+  const [timelineSort, setTimelineSort] = useState("date");
+  const [today] = useState(() => new Date());
+  const miniCalendarCells = calendarMonthCells(today);
 
   // ==========================================
   // 1. STUDENT VIEW DATA (2023t01855)
@@ -74,8 +69,7 @@ export default function DashboardPage() {
       id: "t-1",
       title: "Assignment 1: Equivalence Partitioning & Boundary Value Analysis",
       course: "IC 3204 - Introduction to Software Quality Assurance",
-      dueFormatted: "Sunday, 16 October 2026, 11:59 PM",
-      timeRemaining: "Due in 8 days",
+      due: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 4, 23, 59),
       action: "Add submission",
       link: "/assignments"
     },
@@ -83,12 +77,23 @@ export default function DashboardPage() {
       id: "t-2",
       title: "Mid-Semester Online Examination: Distributed Systems",
       course: "IC 3101 - Advanced Web Application Architectures",
-      dueFormatted: "Tomorrow, 11:59 PM",
-      timeRemaining: "Due tomorrow",
-      action: "Attempt quiz now",
+      due: new Date(today.getFullYear(), today.getMonth(), today.getDate() + 2, 23, 59),
+      action: "View examination",
       link: "/exams"
     }
   ];
+
+  const visibleTimeline = studentTimeline.filter((item) => {
+    const search = timelineSearch.trim().toLowerCase();
+    if (search && !`${item.title} ${item.course}`.toLowerCase().includes(search)) return false;
+    if (timelineFilter === "overdue") return item.due < today;
+    if (timelineFilter === "all") return true;
+    const end = new Date(today);
+    end.setDate(end.getDate() + (timelineFilter === "next7" ? 7 : 30));
+    return item.due >= today && item.due <= end;
+  }).sort((a, b) => timelineSort === "course"
+    ? a.course.localeCompare(b.course) || a.due.getTime() - b.due.getTime()
+    : a.due.getTime() - b.due.getTime());
 
   // ==========================================
   // 2. LECTURER VIEW DATA (lec.pathirana)
@@ -170,14 +175,7 @@ export default function DashboardPage() {
                 <h2 className="text-base font-bold text-[#212529]">
                   Recently accessed courses
                 </h2>
-                <div className="flex items-center gap-1">
-                  <button className="p-1 border border-[#dee2e6] rounded bg-white text-[#6c757d] hover:bg-[#f8f9fa] cursor-pointer">
-                    <ChevronLeft size={16} />
-                  </button>
-                  <button className="p-1 border border-[#dee2e6] rounded bg-white text-[#6c757d] hover:bg-[#f8f9fa] cursor-pointer">
-                    <ChevronRight size={16} />
-                  </button>
-                </div>
+                <Link href="/courses" className="text-xs text-[#0f6cbf] hover:underline">All courses →</Link>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -218,6 +216,7 @@ export default function DashboardPage() {
 
                 <div className="flex flex-wrap items-center gap-2">
                   <select 
+                    aria-label="Timeline date range"
                     value={timelineFilter} 
                     onChange={(e) => setTimelineFilter(e.target.value)}
                     className="text-xs border border-[#ced4da] rounded-md px-2.5 py-1.5 bg-white font-medium text-[#495057] focus:outline-hidden"
@@ -228,9 +227,9 @@ export default function DashboardPage() {
                     <option value="next30">Next 30 days</option>
                   </select>
 
-                  <select className="text-xs border border-[#ced4da] rounded-md px-2.5 py-1.5 bg-white font-medium text-[#495057] focus:outline-hidden">
-                    <option>Sort by dates</option>
-                    <option>Sort by courses</option>
+                  <select value={timelineSort} onChange={(e) => setTimelineSort(e.target.value)} aria-label="Sort timeline" className="text-xs border border-[#ced4da] rounded-md px-2.5 py-1.5 bg-white font-medium text-[#495057] focus:outline-hidden">
+                    <option value="date">Sort by dates</option>
+                    <option value="course">Sort by courses</option>
                   </select>
                 </div>
               </div>
@@ -239,6 +238,7 @@ export default function DashboardPage() {
                 <Search size={14} className="absolute left-3 top-3 text-[#adb5bd]" />
                 <input
                   type="text"
+                  aria-label="Search timeline"
                   placeholder="Search by activity type or name"
                   value={timelineSearch}
                   onChange={(e) => setTimelineSearch(e.target.value)}
@@ -247,22 +247,23 @@ export default function DashboardPage() {
               </div>
 
               <div className="space-y-4 pt-1">
-                {studentTimeline.map((item) => (
+                {visibleTimeline.length === 0 && (
+                  <p role="status" className="py-6 text-center text-sm text-[#6c757d]">No activities match this date range and search.</p>
+                )}
+                {visibleTimeline.map((item) => (
                   <div key={item.id} className="p-4 border border-[#e9ecef] rounded-lg bg-white flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:border-[#0f6cbf] transition-colors">
                     <div className="space-y-1">
                       <div className="flex items-center gap-2 text-xs text-[#dc3545] font-semibold">
                         <Clock size={14} />
-                        <span>{item.dueFormatted}</span>
-                        <span className="text-[#6c757d] font-normal">({item.timeRemaining})</span>
+                        <span>{item.due.toLocaleString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
+                        <span className="text-[#6c757d] font-normal">({item.due < today ? "Overdue" : "Upcoming"})</span>
                       </div>
                       <h3 className="text-sm font-bold text-[#212529]">{item.title}</h3>
                       <p className="text-xs text-[#6c757d]">{item.course}</p>
                     </div>
 
-                    <Link href={item.link}>
-                      <button className="px-4 py-2 bg-[#0f6cbf] hover:bg-[#0d5ca3] text-white text-xs font-semibold rounded-md transition-colors cursor-pointer whitespace-nowrap">
-                        {item.action}
-                      </button>
+                    <Link href={item.link} className="px-4 py-2 bg-[#0f6cbf] hover:bg-[#0d5ca3] text-white text-xs font-semibold rounded-md transition-colors whitespace-nowrap">
+                      {item.action}
                     </Link>
                   </div>
                 ))}
@@ -320,15 +321,7 @@ export default function DashboardPage() {
                   </div>
                 ))}
               </div>
-              <div className="pt-2 border-t border-[#f1f3f5]">
-                <button
-                  type="button"
-                  onClick={() => alert("Private files manager: Cloud storage capacity is 100 MB per student.")}
-                  className="w-full py-1.5 px-3 bg-[#f8f9fa] hover:bg-[#e9ecef] text-[#0f6cbf] border border-[#ced4da] rounded text-xs font-semibold transition-colors cursor-pointer"
-                >
-                  Manage private files...
-                </button>
-              </div>
+              <p className="border-t border-[#f1f3f5] pt-2 text-[11px] text-[#6c757d]">Files shown are samples. Private file uploads are not connected in this preview.</p>
             </div>
 
             <div className="bg-white border border-[#dee2e6] rounded-xl p-5 shadow-2xs space-y-3">
@@ -337,14 +330,16 @@ export default function DashboardPage() {
                 <Link href="/calendar" className="text-xs text-[#0f6cbf] hover:underline">Full calendar →</Link>
               </div>
               <div className="text-center space-y-2">
-                <div className="text-xs font-bold text-[#495057]">October 2026</div>
+                <div className="text-xs font-bold text-[#495057]">{today.toLocaleDateString("en-GB", { month: "long", year: "numeric" })}</div>
                 <div className="grid grid-cols-7 gap-1 text-[11px] text-[#6c757d] font-medium pt-1">
                   <span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span><span>Su</span>
                 </div>
                 <div className="grid grid-cols-7 gap-1 text-xs font-mono pt-1">
-                  <span className="text-[#adb5bd]">29</span><span className="text-[#adb5bd]">30</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span>
-                  <span>6</span><span className="bg-red-500 text-white font-bold rounded-full">7</span><span className="bg-red-500 text-white font-bold rounded-full">8</span><span>9</span><span>10</span><span>11</span><span>12</span>
-                  <span>13</span><span>14</span><span className="bg-[#0f6cbf] text-white font-bold rounded-full">15</span><span className="bg-[#0f6cbf] text-white font-bold rounded-full">16</span><span>17</span><span>18</span><span>19</span>
+                  {miniCalendarCells.map((cell) => (
+                    <span key={calendarDateKey(cell.date)} className={calendarDateKey(cell.date) === calendarDateKey(today) ? "bg-[#0f6cbf] text-white font-bold rounded-full" : cell.isCurrentMonth ? "text-[#495057]" : "text-[#adb5bd]"}>
+                      {cell.dayNumber}
+                    </span>
+                  ))}
                 </div>
               </div>
             </div>
@@ -378,7 +373,7 @@ export default function DashboardPage() {
       {user.role === "lecturer" && (
         <div className="space-y-8">
           {/* Quick Action Teaching Desk */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <Link href="/lecturer/grading" className="block">
               <div className="bg-white border border-[#dee2e6] hover:border-[#0f6cbf] p-4 rounded-xl shadow-2xs transition-colors flex items-center gap-3">
                 <div className="p-2.5 rounded-lg bg-amber-50 text-amber-700">
@@ -451,15 +446,11 @@ export default function DashboardPage() {
                     <span className="text-green-700 font-semibold">{c.avgAttendance}% Attendance</span>
                   </div>
                   <div className="flex gap-2 pt-1">
-                    <Link href={`/courses/${c.id}`} className="flex-1">
-                      <button className="w-full py-1.5 border border-[#ced4da] rounded text-xs font-semibold text-[#495057] hover:bg-[#f8f9fa] cursor-pointer">
-                        Course Materials
-                      </button>
+                    <Link href={`/courses/${c.id}`} className="flex-1 inline-flex min-h-11 items-center justify-center border border-[#ced4da] rounded text-xs font-semibold text-[#495057] hover:bg-[#f8f9fa]">
+                      Course Materials
                     </Link>
-                    <Link href="/lecturer/grading" className="flex-1">
-                      <button className="w-full py-1.5 bg-[#0f6cbf] text-white rounded text-xs font-semibold hover:bg-[#0d5ca3] cursor-pointer">
-                        Grade Submissions
-                      </button>
+                    <Link href="/lecturer/grading" className="flex-1 inline-flex min-h-11 items-center justify-center bg-[#0f6cbf] text-white rounded text-xs font-semibold hover:bg-[#0d5ca3]">
+                      Grade Submissions
                     </Link>
                   </div>
                 </div>
@@ -485,10 +476,8 @@ export default function DashboardPage() {
                   </div>
                   <div className="flex items-center gap-4">
                     <span className="font-mono text-[#6c757d] text-[11px]">{s.submittedAt}</span>
-                    <Link href="/lecturer/grading">
-                      <button className="px-3 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded font-medium text-xs cursor-pointer">
-                        Grade Rubric
-                      </button>
+                    <Link href="/lecturer/grading" className="px-3 py-1 bg-amber-500 hover:bg-amber-600 text-white rounded font-medium text-xs min-h-11 inline-flex items-center">
+                      Grade Rubric
                     </Link>
                   </div>
                 </div>
@@ -504,7 +493,7 @@ export default function DashboardPage() {
       {user.role === "admin" && (
         <div className="space-y-8">
           {/* Executive KPI Cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {adminKPIs.map((kpi, idx) => {
               const Icon = kpi.icon;
               return (

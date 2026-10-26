@@ -18,6 +18,7 @@ import {
   HelpCircle
 } from "lucide-react";
 import { useTenant } from "@/lib/tenant-context";
+import { downloadFile } from "@/lib/download";
 
 export default function LecturerAssessmentsCreatorPage() {
   const { tenant } = useTenant();
@@ -30,15 +31,21 @@ export default function LecturerAssessmentsCreatorPage() {
   const [requireIntegrityPledge, setRequireIntegrityPledge] = useState(true);
   const [allowAnswerScriptUpload, setAllowAnswerScriptUpload] = useState(true);
   const [successSaved, setSuccessSaved] = useState(false);
+  const [targetCourse, setTargetCourse] = useState("ICT 3101");
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
+    downloadFile("assessment-draft.json", JSON.stringify({
+      title: assessmentTitle.trim(), type: assessmentType, course: targetCourse,
+      durationMins, attemptsAllowed, randomizeQuestions, requireIntegrityPledge,
+      allowAnswerScriptUpload, status: "draft",
+    }, null, 2), "application/json");
     setSuccessSaved(true);
     setTimeout(() => setSuccessSaved(false), 3000);
   };
 
   return (
-    <div className="p-6 md:p-8 max-w-5xl mx-auto space-y-6">
+    <div className="p-0 md:p-8 max-w-5xl mx-auto space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-6">
         <div>
           <span className="text-xs font-mono font-bold text-primary uppercase">
@@ -48,7 +55,7 @@ export default function LecturerAssessmentsCreatorPage() {
             Online Examination & Quiz Configuration Studio
           </h1>
           <p className="text-xs text-muted-foreground mt-1">
-            Create online assessments with strict server-side timers, proctoring declarations, and answer script upload workflows.
+            Prepare an assessment draft. Publishing to student courses requires a connected assessment service.
           </p>
         </div>
       </div>
@@ -56,7 +63,7 @@ export default function LecturerAssessmentsCreatorPage() {
       {successSaved && (
         <div className="p-4 bg-green-500/10 border border-green-500/30 text-green-700 dark:text-green-400 rounded-xl text-xs flex items-center gap-2 animate-in fade-in">
           <CheckCircle2 size={16} />
-          <span>Examination configured and published to student examination calendar!</span>
+          <span>Assessment draft downloaded. It has not been published to students.</span>
         </div>
       )}
 
@@ -96,6 +103,7 @@ export default function LecturerAssessmentsCreatorPage() {
                 <label className="font-semibold block">Time Limit (Minutes) (FR-064)</label>
                 <Input
                   type="number"
+                  required
                   min={5}
                   max={240}
                   value={durationMins}
@@ -120,10 +128,10 @@ export default function LecturerAssessmentsCreatorPage() {
 
               <div className="space-y-1.5">
                 <label className="font-semibold block">Target Course Module</label>
-                <select className="w-full border rounded-lg px-3 py-2 bg-background font-medium focus:outline-hidden text-xs">
-                  <option>ICT 3101: Distributed Systems</option>
-                  <option>ICT 3102: Database Architectures</option>
-                  <option>ET 2105: Embedded Systems & IoT</option>
+                <select value={targetCourse} onChange={event => setTargetCourse(event.target.value)} className="w-full border rounded-lg px-3 py-2 bg-background font-medium focus:outline-hidden text-xs">
+                  <option value="ICT 3101">ICT 3101: Distributed Systems</option>
+                  <option value="ICT 3102">ICT 3102: Database Architectures</option>
+                  <option value="ET 2105">ET 2105: Embedded Systems & IoT</option>
                 </select>
               </div>
             </div>
@@ -195,7 +203,7 @@ export default function LecturerAssessmentsCreatorPage() {
             className="text-xs font-semibold gap-2 h-10 px-6 text-white"
             style={{ backgroundColor: tenant.primaryColor }}
           >
-            <Save size={15} /> Publish Assessment to Course
+            <Save size={15} /> Download assessment draft
           </Button>
         </div>
       </form>

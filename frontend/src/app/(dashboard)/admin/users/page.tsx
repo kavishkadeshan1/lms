@@ -20,6 +20,7 @@ import {
   X
 } from "lucide-react";
 import { useTenant } from "@/lib/tenant-context";
+import { useLocalState } from "@/lib/use-local-state";
 
 interface UserRecord {
   id: string;
@@ -34,7 +35,7 @@ interface UserRecord {
 }
 
 export default function UsersManagementPage() {
-  const { tenant } = useTenant();
+  const { tenant, user } = useTenant();
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [showBulkModal, setShowBulkModal] = useState(false);
@@ -49,8 +50,9 @@ export default function UsersManagementPage() {
   const [newUserDept, setNewUserDept] = useState("Dept of ICT");
   const [newUserMfa, setNewUserMfa] = useState(true);
   const [userCreationNotice, setUserCreationNotice] = useState<string | null>(null);
+  const [userError, setUserError] = useState("");
 
-  const [users, setUsers] = useState<UserRecord[]>([
+  const [users, setUsers] = useLocalState<UserRecord[]>(`lms:users:${tenant.id}:${user.username}`, [
     {
       id: "u-1",
       name: "Kavishka Sandaruwan",
@@ -135,6 +137,10 @@ export default function UsersManagementPage() {
   const handleCreateUser = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newUserName.trim() || !newUserEmail.trim()) return;
+    if (users.some(user => user.email.toLowerCase() === newUserEmail.trim().toLowerCase())) {
+      setUserError("A user with this email address already exists.");
+      return;
+    }
 
     const created: UserRecord = {
       id: `u-${Date.now()}`,
@@ -149,8 +155,9 @@ export default function UsersManagementPage() {
     };
 
     setUsers(prev => [created, ...prev]);
+    setUserError("");
     setShowAddUserModal(false);
-    setUserCreationNotice(`User "${created.name}" created with role "${created.role}".`);
+    setUserCreationNotice(`Demo user "${created.name}" added to this preview. No login account was created.`);
     setNewUserName("");
     setNewUserEmail("");
     setNewUserIndex("");
@@ -158,7 +165,7 @@ export default function UsersManagementPage() {
   };
 
   return (
-    <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6">
+    <div className="p-0 md:p-8 max-w-7xl mx-auto space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-6">
         <div>
           <span className="text-xs font-mono font-bold text-primary uppercase">
@@ -237,7 +244,8 @@ export default function UsersManagementPage() {
       {/* Users Table */}
       <Card className="overflow-hidden">
         <CardContent className="p-0">
-          <div className="divide-y text-xs">
+          <p className="px-4 py-2 text-xs text-muted-foreground md:hidden">Swipe horizontally to view all columns.</p>
+          <div className="lms-data-grid divide-y text-xs" role="region" aria-label="Scrollable records" tabIndex={0}>
             <div className="p-3.5 grid grid-cols-12 font-bold bg-muted/40 text-muted-foreground">
               <div className="col-span-4">User Details</div>
               <div className="col-span-2">Role</div>
@@ -309,22 +317,22 @@ export default function UsersManagementPage() {
 
       {/* Bulk CSV Import Modal (SRS FR-045) */}
       {showBulkModal && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+        <div className="lms-modal fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
           <Card className="max-w-lg w-full animate-in zoom-in-95">
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
                 <FileSpreadsheet className="w-5 h-5 text-primary" /> Bulk Enrolment & User CSV Import (FR-045)
               </CardTitle>
               <CardDescription>
-                Import students and lecturers directly from institutional SIS spreadsheets.
+                Preview the CSV format. A connected enrolment service is required to import accounts.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4 text-xs">
               {bulkImportSuccess ? (
                 <div className="p-6 text-center space-y-2 bg-green-500/10 border border-green-500/30 rounded-xl">
                   <CheckCircle2 className="w-8 h-8 text-green-600 mx-auto" />
-                  <h4 className="font-bold text-sm text-green-700 dark:text-green-400">120 Students Enrolled Successfully</h4>
-                  <p className="text-muted-foreground">Credentials dispatched via institutional email (FR-152).</p>
+                  <h4 className="font-bold text-sm text-green-700 dark:text-green-400">Import preview complete</h4>
+                  <p className="text-muted-foreground">No accounts were created and no email was sent.</p>
                 </div>
               ) : (
                 <>
@@ -334,14 +342,14 @@ export default function UsersManagementPage() {
                   </div>
 
                   <div className="border-2 border-dashed rounded-xl p-6 text-center space-y-2">
-                    <span className="font-medium block">Drop student_enrollment_2026.csv here</span>
-                    <span className="text-[11px] text-muted-foreground">Or click below to simulate batch import</span>
+                    <span className="font-medium block">CSV upload is unavailable in this preview.</span>
+                    <span className="text-[11px] text-muted-foreground">The action below demonstrates the import interface only.</span>
                   </div>
 
                   <div className="flex justify-end gap-2 pt-2">
                     <Button variant="ghost" size="sm" onClick={() => setShowBulkModal(false)}>Cancel</Button>
                     <Button size="sm" onClick={handleSimulateBulkImport} style={{ backgroundColor: tenant.primaryColor }} className="text-white">
-                      Process 120 User Records
+                      Preview import
                     </Button>
                   </div>
                 </>
@@ -353,7 +361,7 @@ export default function UsersManagementPage() {
 
       {/* Add New User Modal (SRS FR-016 - FR-019) */}
       {showAddUserModal && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+        <div className="lms-modal fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
           <Card className="max-w-md w-full animate-in zoom-in-95">
             <CardHeader className="border-b pb-3">
               <div className="flex justify-between items-center">
@@ -374,6 +382,7 @@ export default function UsersManagementPage() {
             </CardHeader>
             <CardContent className="pt-4 text-xs">
               <form onSubmit={handleCreateUser} className="space-y-3.5">
+                {userError && <p role="alert" className="text-red-600">{userError}</p>}
                 <div className="space-y-1">
                   <label className="font-semibold block">Full Legal Name</label>
                   <Input
@@ -402,7 +411,7 @@ export default function UsersManagementPage() {
                     <label className="font-semibold block">Role (RBAC FR-019)</label>
                     <select
                       value={newUserRole}
-                      onChange={(e) => setNewUserRole(e.target.value as any)}
+                    onChange={(e) => setNewUserRole(e.target.value as "student" | "lecturer" | "admin")}
                       className="w-full border rounded-lg px-2.5 py-2 bg-background font-medium focus:outline-hidden text-xs"
                     >
                       <option value="student">Student</option>

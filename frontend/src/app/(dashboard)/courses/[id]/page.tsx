@@ -3,6 +3,8 @@
 import React, { useState, Suspense } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
+import { INITIAL_COURSES, findCourse, type CourseItem } from "@/lib/course-catalog";
+import { useLocalState } from "@/lib/use-local-state";
 import { 
   FileText, 
   MessageSquare, 
@@ -55,17 +57,7 @@ interface CourseSection {
   activities: ActivityItem[];
 }
 
-function CourseDetailContent() {
-  const params = useParams();
-  const { tenant, user, editMode, setEditMode } = useTenant();
-
-  const isInstructor = user.role === "lecturer" || user.role === "admin";
-
-  const [courseTab, setCourseTab] = useState<"course" | "participants" | "grades" | "competencies">("course");
-  const [courseIndexOpen, setCourseIndexOpen] = useState(true);
-
-  // Course sections state
-  const [sections, setSections] = useState<CourseSection[]>([
+const SQA_SECTIONS: CourseSection[] = [
     {
       id: "sec-general",
       title: "General",
@@ -103,7 +95,25 @@ function CourseDetailContent() {
         { id: "act-9", type: "quiz", title: "Mid-Semester Formal Online Examination", typeLabel: "Online Examination • 60 Mins", completed: false, link: "/courses/ic-3204/exams/exam-midterm" }
       ]
     }
-  ]);
+  ];
+
+function CourseDetailContent({ course }: { course: CourseItem }) {
+  const { tenant, user, editMode, setEditMode } = useTenant();
+
+  const isInstructor = user.role === "lecturer" || user.role === "admin";
+
+  const [courseTab, setCourseTab] = useState<"course" | "participants" | "grades" | "competencies">("course");
+  const [courseIndexOpen, setCourseIndexOpen] = useState(true);
+
+  // Course sections state
+  const initialSections = course.id === "ic-3204" ? SQA_SECTIONS : [{
+    id: "sec-general", title: "Course overview", description: course.title,
+    activities: [
+      { id: "announcements", type: "forum" as const, title: "Faculty announcements", typeLabel: "Announcements", completed: false, link: "/home" },
+      ...(course.id === "ic-3101" ? [{ id: "midterm", type: "quiz" as const, title: "Distributed Systems Practice Examination", typeLabel: "Practice exam • 60 minutes", completed: false, link: `/courses/${course.id}/exams/exam-midterm` }] : []),
+    ],
+  }];
+  const [sections, setSections] = useLocalState<CourseSection[]>(`lms:sections:${tenant.id}:${user.username}:${course.id}`, initialSections);
 
   // Modal State for Adding Activities / Resources
   const [addModalOpen, setAddModalOpen] = useState(false);
@@ -433,17 +443,17 @@ function CourseDetailContent() {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
             <div className="flex items-center gap-2 text-xs font-mono text-[#6c757d]">
-              <span className="font-bold text-[#0f6cbf]">IC 3204</span>
+              <span className="font-bold text-[#0f6cbf]">{course.code}</span>
               <span>•</span>
               <span>Semester 1 — 2025/2026</span>
               <span>•</span>
-              <span>Department of Information and Communication Technology</span>
+              <span>{course.departmentName}</span>
             </div>
             <h1 className="text-2xl font-bold text-[#212529] mt-1">
-              Introduction to Software Quality Assurance
+              {course.title}
             </h1>
             <p className="text-xs text-[#6c757d] mt-1">
-              Course Coordinator: <strong>Dr. Aruna Pathirana</strong> • Faculty of Technology, University of Colombo
+              Course Coordinator: <strong>{course.lecturer}</strong> • {tenant.facultyName}, {tenant.name}
             </p>
           </div>
 
@@ -514,7 +524,7 @@ function CourseDetailContent() {
         )}
 
         {/* Horizontal Navigation Tabs (Course, Participants, Grades, Competencies) */}
-        <div className="flex border-b border-[#dee2e6] -mx-6 px-6 pt-2">
+        <div className="flex flex-wrap border-b border-[#dee2e6] -mx-4 px-4 sm:-mx-6 sm:px-6 pt-2">
           <button
             onClick={() => setCourseTab("course")}
             className={`px-4 py-2.5 text-xs font-semibold border-b-2 transition-colors cursor-pointer ${
@@ -562,7 +572,7 @@ function CourseDetailContent() {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
         {/* Course Index Drawer (Left Sidebar, 3 cols) */}
         {courseIndexOpen && (
-          <div className="lg:col-span-3 bg-white border border-[#dee2e6] rounded-xl p-4 shadow-2xs space-y-3 sticky top-20">
+          <div className="lg:col-span-3 bg-white border border-[#dee2e6] rounded-xl p-4 shadow-2xs space-y-3 lg:sticky lg:top-20">
             <h3 className="text-xs font-bold uppercase tracking-wider text-[#6c757d] border-b border-[#e9ecef] pb-2 flex items-center gap-1.5">
               <FolderTree size={14} className="text-[#0f6cbf]" /> Course Index
             </h3>
@@ -852,10 +862,10 @@ function CourseDetailContent() {
 
           {courseTab === "participants" && (
             <div className="bg-white border border-[#dee2e6] rounded-xl p-6 shadow-2xs space-y-4">
-              <h2 className="text-base font-bold text-[#212529]">Course Participants (Level 3 BICT)</h2>
+              <h2 className="text-base font-bold text-[#212529]">Course Participants ({course.code})</h2>
               <div className="divide-y divide-[#e9ecef] text-xs">
                 {[
-                  { name: "Dr. Aruna Pathirana", role: "Lecturer / Coordinator", email: "aruna.p@tech.cmb.ac.lk" },
+                  { name: course.lecturer, role: "Lecturer / Coordinator", email: "Contact through the faculty office" },
                   { name: "K. G. K. Sandaruwan (2023t01855)", role: "Student", email: "2023t01855@tech.cmb.ac.lk" },
                   { name: "Nipuni Wickramasinghe (2022/BST/018)", role: "Student", email: "nipuni@tech.cmb.ac.lk" }
                 ].map((p, idx) => (
@@ -876,7 +886,7 @@ function CourseDetailContent() {
           {courseTab === "grades" && (
             <div className="bg-white border border-[#dee2e6] rounded-xl p-6 shadow-2xs space-y-4">
               <div className="flex justify-between items-center">
-                <h2 className="text-base font-bold text-[#212529]">Course Gradebook (IC 3204)</h2>
+                <h2 className="text-base font-bold text-[#212529]">Course Gradebook ({course.code})</h2>
                 {isInstructor && (
                   <Link href="/lecturer/grading">
                     <button className="px-3 py-1.5 bg-[#0f6cbf] text-white rounded text-xs font-semibold hover:bg-[#0d5ca3] cursor-pointer">
@@ -885,45 +895,23 @@ function CourseDetailContent() {
                   </Link>
                 )}
               </div>
-              <div className="border border-[#dee2e6] rounded-lg overflow-hidden text-xs">
-                <div className="p-3 bg-[#f8f9fa] font-bold text-[#495057] grid grid-cols-4">
-                  <span>Assessment Item</span>
-                  <span className="text-center">Weight</span>
-                  <span className="text-center">Grade</span>
-                  <span className="text-right">Action</span>
-                </div>
-                <div className="p-3 border-t border-[#e9ecef] grid grid-cols-4 items-center">
-                  <span className="font-semibold text-[#0f6cbf]">Assignment 1 (Black-Box Testing)</span>
-                  <span className="text-center font-mono">20.0 %</span>
-                  <span className="text-center font-mono font-bold text-amber-600">89 Submissions</span>
-                  <span className="text-right">
-                    <Link href="/lecturer/grading" className="text-[#0f6cbf] hover:underline font-semibold">Grade submissions</Link>
-                  </span>
-                </div>
-                <div className="p-3 border-t border-[#e9ecef] grid grid-cols-4 items-center">
-                  <span className="font-semibold text-[#0f6cbf]">Mid-Semester Examination</span>
-                  <span className="text-center font-mono">20.0 %</span>
-                  <span className="text-center font-mono font-bold text-[#212529]">Exam Window Open</span>
-                  <span className="text-right">
-                    <Link href="/courses/ic-3204/exams/exam-midterm" className="text-[#0f6cbf] hover:underline font-semibold">View exam hall</Link>
-                  </span>
-                </div>
-              </div>
+              <p className="text-sm text-[#6c757d]">This demonstration has no official grades for {course.code}. Practice attempts do not update the institutional gradebook.</p>
+              <Link href="/grades" className="text-sm text-[#0f6cbf] hover:underline">View sample gradebook</Link>
             </div>
           )}
 
           {courseTab === "competencies" && (
             <div className="bg-white border border-[#dee2e6] rounded-xl p-6 shadow-2xs space-y-4">
               <div>
-                <h2 className="text-base font-bold text-[#212529]">Course Learning Competencies (IC 3204)</h2>
-                <p className="text-xs text-[#6c757d] mt-0.5">Competency frameworks mapped to the BICT curriculum and IEEE/ISTQB standard.</p>
+                <h2 className="text-base font-bold text-[#212529]">Course Learning Competencies ({course.code})</h2>
+                <p className="text-xs text-[#6c757d] mt-0.5">{course.id === "ic-3204" ? "Sample competencies for the software quality curriculum." : "No competencies have been added for this course."}</p>
               </div>
               <div className="divide-y divide-[#e9ecef] border border-[#dee2e6] rounded-lg overflow-hidden text-xs">
-                {[
+                {(course.id === "ic-3204" ? [
                   { code: "COMP-QA-01", title: "Specification-Based Black-Box Test Design", level: "Proficient", status: "Mastered" },
                   { code: "COMP-QA-02", title: "White-Box Control Flow & Cyclomatic Complexity", level: "Intermediate", status: "In Progress" },
                   { code: "COMP-QA-03", title: "Automated Continuous Integration Test Pipelines", level: "Foundational", status: "Scheduled" }
-                ].map((c, idx) => (
+                ] : []).map((c, idx) => (
                   <div key={idx} className="p-4 flex justify-between items-center bg-white hover:bg-[#f8f9fa] transition-colors">
                     <div>
                       <span className="font-mono font-bold text-[#0f6cbf]">{c.code}</span>
@@ -945,7 +933,7 @@ function CourseDetailContent() {
       {/* MODAL: ADD AN ACTIVITY OR RESOURCE (Moodle 4 Style)      */}
       {/* ======================================================== */}
       {addModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+        <div className="lms-modal fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
           <div className="bg-white border border-[#dee2e6] rounded-xl shadow-2xl max-w-xl w-full p-6 space-y-5 animate-in zoom-in-95 text-xs text-[#212529]">
             <div className="flex justify-between items-center border-b border-[#e9ecef] pb-3">
               <div>
@@ -974,7 +962,7 @@ function CourseDetailContent() {
                     <button
                       type="button"
                       key={item.type}
-                      onClick={() => setSelectedResourceType(item.type as any)}
+                      onClick={() => setSelectedResourceType(item.type as typeof selectedResourceType)}
                       className={`p-3 rounded-lg border text-left flex flex-col gap-1.5 transition-all cursor-pointer ${
                         isSel 
                           ? "border-[#0f6cbf] bg-blue-50/50 shadow-2xs font-semibold text-[#0f6cbf]" 
@@ -1079,7 +1067,7 @@ function CourseDetailContent() {
       {/* MODAL: ADD NEW SECTION / WEEK TOPIC                      */}
       {/* ======================================================== */}
       {showAddSectionModal && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+        <div className="lms-modal fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
           <div className="bg-white border border-[#dee2e6] rounded-xl shadow-2xl max-w-md w-full p-6 space-y-4 text-xs text-[#212529]">
             <h3 className="text-base font-bold text-[#212529]">Add New Course Section / Week</h3>
             <div className="space-y-1">
@@ -1116,7 +1104,7 @@ function CourseDetailContent() {
       {/* MODAL: EDIT ACTIVITY SETTINGS (Moodle 4 Boost Style)     */}
       {/* ======================================================== */}
       {editActivityModalOpen && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+        <div className="lms-modal fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
           <div className="bg-white border border-[#dee2e6] rounded-xl shadow-2xl max-w-xl w-full max-h-[90vh] overflow-y-auto p-6 space-y-5 animate-in zoom-in-95 text-xs text-[#212529]">
             <div className="flex justify-between items-center border-b border-[#e9ecef] pb-3">
               <div>
@@ -1154,7 +1142,7 @@ function CourseDetailContent() {
                     <button
                       type="button"
                       key={item.type}
-                      onClick={() => setEditType(item.type as any)}
+                      onClick={() => setEditType(item.type as ActivityItem["type"])}
                       className={`p-2 rounded-lg border text-center flex flex-col items-center gap-1 transition-all cursor-pointer ${
                         isSel 
                           ? "border-[#0f6cbf] bg-blue-50/60 font-semibold text-[#0f6cbf] ring-1 ring-[#0f6cbf]" 
@@ -1316,7 +1304,16 @@ function CourseDetailContent() {
 export default function CourseDetailPage() {
   return (
     <Suspense fallback={<div className="p-8 text-center text-xs text-[#6c757d]">Loading course...</div>}>
-      <CourseDetailContent />
+      <CourseFromRoute />
     </Suspense>
   );
+}
+
+function CourseFromRoute() {
+  const params = useParams<{ id: string }>();
+  const { tenant, user } = useTenant();
+  const [courses] = useLocalState<CourseItem[]>(`lms:courses:${tenant.id}:${user.username}`, INITIAL_COURSES);
+  const course = findCourse(courses, params.id);
+  if (!course) return <div className="space-y-3 p-6"><h1 className="text-xl font-bold">Course not found</h1><Link href="/courses">Return to course catalogue</Link></div>;
+  return <CourseDetailContent key={`${tenant.id}:${user.username}:${course.id}`} course={course} />;
 }

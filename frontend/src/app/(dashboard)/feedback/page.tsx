@@ -36,7 +36,7 @@ export default function ReviewsAndFeedbackPage() {
   };
 
   return (
-    <div className="p-6 md:p-8 max-w-4xl mx-auto space-y-6">
+    <div className="p-0 md:p-8 max-w-4xl mx-auto space-y-6">
       <div className="border-b pb-6">
         <span className="text-xs font-mono font-bold text-primary uppercase">
           Quality Assurance & Continuous Improvement (SRS §6.15, §16, FR-116 - FR-122)
@@ -54,10 +54,10 @@ export default function ReviewsAndFeedbackPage() {
           <CardContent className="p-8 text-center space-y-3">
             <CheckCircle2 className="w-12 h-12 text-green-600 mx-auto" />
             <h3 className="text-lg font-bold text-green-700 dark:text-green-400">
-              Evaluation Recorded Anonymously
+              {isAnonymous ? "Anonymous evaluation preview" : "Named evaluation preview"}
             </h3>
             <p className="text-xs text-muted-foreground max-w-md mx-auto">
-              Your evaluation scores and comments have been aggregated into the Faculty Quality Assurance Board dashboard. No personal identifiers are linked.
+              Your sample evaluation is complete for this visit. No scores, comments, or personal details have been sent to faculty staff.
             </p>
             <Button 
               variant="outline" 

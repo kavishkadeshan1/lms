@@ -1,6 +1,8 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useSyncExternalStore } from "react";
+import { createSessionStore, SESSION_KEY } from "@/lib/session-store";
+import { useLocalState } from "@/lib/use-local-state";
 
 export type Role = "student" | "lecturer" | "admin";
 
@@ -126,6 +128,8 @@ interface TenantContextType {
   setTenant: (tenant: TenantInfo) => void;
   allTenants: TenantInfo[];
   user: UserProfile;
+  isAuthenticated: boolean;
+  sessionReady: boolean;
   loginWithCredentials: (username: string, pass: string) => boolean;
   logout: () => void;
   setRole: (role: Role) => void;
@@ -135,46 +139,63 @@ interface TenantContextType {
 
 const TenantContext = createContext<TenantContextType | undefined>(undefined);
 
-export function TenantProvider({ children }: { children: React.ReactNode }) {
-  const [tenant, setTenant] = useState<TenantInfo>(PRESET_TENANTS.uoc_fot);
-  const [user, setUser] = useState<UserProfile>(DEMO_CREDENTIALS["2023t01855"].user);
-  const [editMode, setEditMode] = useState<boolean>(false);
+const sessionStore = createSessionStore(() => window.localStorage);
+const subscribeSession = (listener: () => void) => {
+  const unsubscribe = sessionStore.subscribe(listener);
+  const onStorage = (event: StorageEvent) => {
+    if (event.key === SESSION_KEY || event.key === null) sessionStore.refresh();
+  };
+  window.addEventListener("storage", onStorage);
+  return () => {
+    unsubscribe();
+    window.removeEventListener("storage", onStorage);
+  };
+};
+const emptySubscribe = () => () => {};
+const getClientReady = () => true;
+const getServerReady = () => false;
+const getServerSession = () => null;
 
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const savedUser = localStorage.getItem("lms_user_session");
-      if (savedUser && DEMO_CREDENTIALS[savedUser]) {
-        setUser(DEMO_CREDENTIALS[savedUser].user);
-      }
-    }
-  }, []);
+function isTenantInfo(value: unknown): value is TenantInfo {
+  if (!value || typeof value !== "object") return false;
+  const tenant = value as Record<string, unknown>;
+  return ["id", "name", "shortName", "subdomain", "tagline", "primaryColor", "crestIcon", "facultyName"].every(key => typeof tenant[key] === "string");
+}
+
+export function TenantProvider({ children }: { children: React.ReactNode }) {
+  const [tenant, setTenant] = useLocalState<TenantInfo>("lms:active-tenant", PRESET_TENANTS.uoc_fot, isTenantInfo);
+  const username = useSyncExternalStore(subscribeSession, sessionStore.getSnapshot, getServerSession);
+  const sessionReady = useSyncExternalStore(emptySubscribe, getClientReady, getServerReady);
+  const credential = username && Object.hasOwn(DEMO_CREDENTIALS, username) ? DEMO_CREDENTIALS[username] : null;
+  const isAuthenticated = Boolean(credential);
+  // Consumers only render inside the session gate. This fallback keeps the
+  // profile shape stable during server rendering, before browser storage loads.
+  const user = credential?.user ?? DEMO_CREDENTIALS["2023t01855"].user;
+  const [editing, setEditing] = useState<{ username: string | null; enabled: boolean }>({ username: null, enabled: false });
+  const editMode = isAuthenticated && user.role !== "student" && editing.username === username && editing.enabled;
+  const setEditMode = (enabled: boolean) => setEditing({ username, enabled });
 
   const loginWithCredentials = (username: string, pass: string): boolean => {
-    const cred = DEMO_CREDENTIALS[username.trim().toLowerCase()];
+    const normalized = username.trim().toLowerCase();
+    const cred = Object.hasOwn(DEMO_CREDENTIALS, normalized) ? DEMO_CREDENTIALS[normalized] : null;
     if (cred && cred.pass === pass) {
-      setUser(cred.user);
-      if (typeof window !== "undefined") {
-        localStorage.setItem("lms_user_session", username.trim().toLowerCase());
-      }
+      setEditMode(false);
+      sessionStore.setSession(normalized);
       return true;
     }
     return false;
   };
 
   const logout = () => {
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("lms_user_session");
-    }
-    setUser(DEMO_CREDENTIALS["2023t01855"].user);
+    sessionStore.setSession(null);
+    setEditMode(false);
   };
 
   const setRole = (newRole: Role) => {
     const match = Object.values(DEMO_CREDENTIALS).find(c => c.user.role === newRole);
     if (match) {
-      setUser(match.user);
-      if (typeof window !== "undefined") {
-        localStorage.setItem("lms_user_session", match.user.username);
-      }
+      sessionStore.setSession(match.user.username);
+      setEditMode(false);
     }
   };
 
@@ -185,6 +206,8 @@ export function TenantProvider({ children }: { children: React.ReactNode }) {
         setTenant,
         allTenants: Object.values(PRESET_TENANTS),
         user,
+        isAuthenticated,
+        sessionReady,
         loginWithCredentials,
         logout,
         setRole,

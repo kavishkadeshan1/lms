@@ -13,23 +13,23 @@ export default function ExamsHubPage() {
   const exams = [
     {
       id: "exam-midterm",
-      courseCode: "ICT 3101",
-      courseTitle: "Distributed Systems & Cloud Computing",
-      title: "Mid-Semester Formal Online Examination",
-      status: "Active Now",
-      window: "Oct 07, 2026 (08:00 AM) - Oct 08, 2026 (11:59 PM)",
+      courseCode: "IC 3101",
+      courseTitle: "Advanced Web Application Architectures",
+      title: "Distributed Systems Practice Examination",
+      status: "Practice available",
+      window: "Sample examination · available for practice",
       duration: "60 Minutes",
-      weight: "20% of Final Grade",
-      link: "/courses/ict-3101/exams/exam-midterm",
+      weight: "Practice only · no official grade",
+      link: "/courses/ic-3101/exams/exam-midterm",
       isReady: true,
       badgeColor: "bg-red-500 text-white animate-pulse"
     },
     {
       id: "quiz-2",
-      courseCode: "ICT 3102",
-      courseTitle: "Advanced Database Architectures",
+      courseCode: "IC 3102",
+      courseTitle: "Distributed Database Systems & Cloud Sharding",
       title: "Quiz 2: B-Tree Indexing & Query Optimization",
-      status: "Upcoming",
+      status: "Sample schedule",
       window: "Oct 18, 2026 (10:00 AM - 12:00 PM)",
       duration: "30 Minutes",
       weight: "10% of Continuous Assessment",
@@ -39,8 +39,8 @@ export default function ExamsHubPage() {
     },
     {
       id: "quiz-1",
-      courseCode: "ICT 3101",
-      courseTitle: "Distributed Systems & Cloud Computing",
+      courseCode: "IC 3101",
+      courseTitle: "Advanced Web Application Architectures",
       title: "Quiz 1: Distributed Foundations Knowledge Check",
       status: "Completed",
       window: "Completed on Sep 30, 2026",
@@ -53,7 +53,7 @@ export default function ExamsHubPage() {
   ];
 
   return (
-    <div className="p-6 md:p-8 max-w-6xl mx-auto space-y-6">
+    <div className="p-0 md:p-8 max-w-6xl mx-auto space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-6">
         <div>
           <span className="text-xs font-mono font-bold text-primary uppercase">
@@ -63,13 +63,13 @@ export default function ExamsHubPage() {
             Online Examinations & Quizzes (SRS §13)
           </h1>
           <p className="text-xs text-muted-foreground mt-1">
-            Enforces server-side countdown timers, anti-cheat audit logs, and automatic submissions.
+            Explore a timed practice exam. Answers are saved in this browser; official submissions and grades require your university service.
           </p>
         </div>
         <div className="flex items-center gap-3">
           <div className="text-right text-xs">
             <span className="text-muted-foreground block">Exam Hall Eligibility:</span>
-            <span className="text-green-600 font-bold">Verified (91.5% Attendance)</span>
+            <span className="text-green-600 font-bold">Sample attendance: 91.5%</span>
           </div>
         </div>
       </div>
@@ -98,19 +98,19 @@ export default function ExamsHubPage() {
                 {ex.isReady ? (
                   <Link href={ex.link}>
                     <Button className="bg-red-600 hover:bg-red-700 text-white gap-2 font-semibold text-xs h-10 px-5 shadow-sm">
-                      <Clock size={15} /> Enter Examination Hall
+                      <Clock size={15} /> Open Practice Exam
                     </Button>
                   </Link>
                 ) : ex.status === "Completed" ? (
                   <div className="text-right">
                     <span className="text-xs font-bold text-green-600 flex items-center gap-1 justify-end">
-                      <CheckCircle2 size={14} /> Result Recorded
+                      <CheckCircle2 size={14} /> Sample result
                     </span>
-                    <span className="text-[11px] text-muted-foreground">Grade Released</span>
+                    <span className="text-[11px] text-muted-foreground">Demo record</span>
                   </div>
                 ) : (
                   <Button variant="outline" disabled className="text-xs">
-                    Exam Opens Oct 18
+                    No practice questions available
                   </Button>
                 )}
               </div>

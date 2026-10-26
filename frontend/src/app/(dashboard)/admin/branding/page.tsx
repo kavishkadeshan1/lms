@@ -62,7 +62,7 @@ export default function BrandingStudioPage() {
   ];
 
   return (
-    <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-6">
+    <div className="p-0 md:p-8 max-w-7xl mx-auto space-y-6">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b pb-6">
         <div>
           <span className="text-xs font-mono font-bold text-primary uppercase">
@@ -78,7 +78,7 @@ export default function BrandingStudioPage() {
         <div className="flex items-center gap-3">
           {savedSuccess && (
             <span className="text-xs font-bold text-green-600 flex items-center gap-1.5 animate-in fade-in">
-              <CheckCircle2 size={16} /> Theme Published Live!
+              <CheckCircle2 size={16} /> Theme saved in this browser
             </span>
           )}
           <Button 
@@ -86,7 +86,7 @@ export default function BrandingStudioPage() {
             className="text-xs font-semibold gap-2 shadow-sm text-white"
             style={{ backgroundColor: draftPrimaryColor }}
           >
-            <Check size={16} /> Publish Changes Live
+            <Check size={16} /> Save preview theme
           </Button>
         </div>
       </div>
@@ -269,7 +269,7 @@ export default function BrandingStudioPage() {
 
         {/* Right Column: Live Interactive Preview (FR-013) (7 cols) */}
         <div className="lg:col-span-7 space-y-4">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <Eye size={16} className="text-primary" />
               <span className="text-sm font-bold">Live Portal Preview (FR-013)</span>
